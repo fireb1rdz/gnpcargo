@@ -1,6 +1,21 @@
 from django.forms import ModelForm
+from django.contrib.auth.forms import AuthenticationForm
 from django import forms
 from .models import User
+
+class CustomAuthenticationForm(AuthenticationForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields["username"].widget.attrs.update({
+            "class": "form-control",
+            "placeholder": "Usuário"
+        })
+        self.fields["password"].widget.attrs.update({
+            "class": "form-control",
+            "placeholder": "Senha"
+        })
+
 
 class UserForm(ModelForm):
     class Meta:

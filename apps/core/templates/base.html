@@ -126,11 +126,11 @@
                             <a href="#"
                                class="d-flex align-items-center text-white text-decoration-none dropdown-toggle"
                                data-bs-toggle="dropdown">
-                                <img src="{% static 'avatar.jpg' %}"
-                                     alt="avatar"
-                                     width="32"
-                                     height="32"
-                                     class="rounded-circle me-2">
+                                <img src="{% static 'base/img/avatar.png' %}"
+                                     alt="Avatar do usuário"
+                                     width="40"
+                                     height="40"
+                                     class="rounded-circle me-2 object-fit-cover">
                                 <strong>{{ request.user.first_name|default:"Usuário" }}</strong>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
@@ -144,7 +144,10 @@
                                     <hr class="dropdown-divider">
                                 </li>
                                 <li>
-                                    <a class="dropdown-item text-danger" href="#">Sair</a>
+                                    <form method="post" action="{% url 'users:logout' %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="dropdown-item">Sair</button>
+                                    </form>
                                 </li>
                             </ul>
                         </div>
@@ -160,11 +163,7 @@
         <!-- Bootstrap JS -->
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
         {% if messages %}
-            <script>
-        {% for message in messages %}
-            toastr["{{ message.tags }}"]("{{ message|escapejs }}");
-        {% endfor %}
-            </script>
+            <script>{% for message in messages %}toastr["{{ message.tags }}"]("{{ message|escapejs }}");{% endfor %}</script>
         {% endif %}
     </body>
 </html>

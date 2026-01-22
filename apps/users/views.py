@@ -1,8 +1,22 @@
-from django.views.generic import CreateView, ListView, UpdateView, DeleteView
+from django.views.generic import CreateView, ListView, UpdateView, DeleteView, TemplateView
 from django.contrib import messages
+from django.contrib.auth.views import LoginView, LogoutView
+from django.urls import reverse_lazy
+from .forms import CustomAuthenticationForm
 from apps.users.models import User
 from apps.users.forms import UserForm
 
+class UserLoginView(LoginView):
+    template_name = "auth/login.html"
+    authentication_form = CustomAuthenticationForm
+    redirect_authenticated_user = True
+
+    def get_success_url(self):
+        messages.success(self.request, 'Login realizado com sucesso!')
+        return reverse_lazy("users:home")
+
+class UserLogoutView(LogoutView):
+    next_page = reverse_lazy("users:login")
 
 class UserCreateView(CreateView):
     model = User
@@ -28,3 +42,6 @@ class UserUpdateView(UpdateView):
 class UserDeleteView(DeleteView):
     model = User
     success_url = "/usuarios/listar/"
+
+class HomeView(TemplateView):
+    template_name = "auth/home.html"
