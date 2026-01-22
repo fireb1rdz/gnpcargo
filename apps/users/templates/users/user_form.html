@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="container mt-4" style="max-width: 1900px;">
+        <h3 class="mb-4">
+            {% if object %}
+                Editar Usuário
+            {% else %}
+                Criar Usuário
+            {% endif %}
+        </h3>
+        <form method="post" novalidate>
+            {% csrf_token %}
+            <!-- Dados básicos -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Usuário</label>
+                    {{ form.username }}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">E-mail</label>
+                    {{ form.email }}
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Nome</label>
+                    {{ form.first_name }}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Sobrenome</label>
+                    {{ form.last_name }}
+                </div>
+            </div>
+            <!-- Senha (somente se existir no form) -->
+            {% if form.password1 %}
+                <hr>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Senha</label>
+                        {{ form.password1 }}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Confirmação</label>
+                        {{ form.password2 }}
+                    </div>
+                </div>
+            {% endif %}
+            <hr>
+            <!-- Permissões / status -->
+            <div class="row mb-3">
+                {% if form.is_active %}
+                    <div class="col-md-4 form-check">
+                        {{ form.is_active }}
+                        <label class="form-check-label">Ativo</label>
+                    </div>
+                {% endif %}
+                {% if form.is_staff %}
+                    <div class="col-md-4 form-check">
+                        {{ form.is_staff }}
+                        <label class="form-check-label">Staff</label>
+                    </div>
+                {% endif %}
+                {% if form.is_superuser %}
+                    <div class="col-md-4 form-check">
+                        {{ form.is_superuser }}
+                        <label class="form-check-label">Superusuário</label>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-primary">Salvar</button>
+                <a href="{% url 'users:user_list' %}" class="btn btn-secondary">Cancelar</a>
+            </div>
+        </form>
+    </div>
+{% endblock %}

@@ -140,3 +140,6 @@ TENANT_MODEL = "core.Tenant"
 TENANT_DOMAIN_MODEL = "core.Domain"
 
 AUTH_USER_MODEL = 'users.User'
+
+# Site ID
+SITE_ID = 1

@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block content %}
+    <div class="container mt-4" style="max-width: 1900px;">
+        <h3 class="mb-4">
+            {% if object %}
+                Editar Entidade
+            {% else %}
+                Criar Entidade
+            {% endif %}
+        </h3>
+        <form method="post">
+            {% csrf_token %}
+            <!-- Dados principais -->
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <label class="form-label">Nome</label>
+                    {{ form.name }}
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">Tipo</label>
+                    {{ form.cpforcnpj }}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">CPF</label>
+                    {{ form.cpf }}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">CNPJ</label>
+                    {{ form.cnpj }}
+                </div>
+            </div>
+            <hr>
+            <!-- Flags -->
+            <div class="row mb-3">
+                <div class="col-md-4 form-check">
+                    {{ form.is_active }}
+                    <label class="form-check-label">Ativo</label>
+                </div>
+                <div class="col-md-4 form-check">
+                    {{ form.is_client }}
+                    <label class="form-check-label">Cliente</label>
+                </div>
+                <div class="col-md-4 form-check">
+                    {{ form.is_shipping_company }}
+                    <label class="form-check-label">Transportadora</label>
+                </div>
+            </div>
+            <div class="row mb-4">
+                <div class="col-md-4 form-check">
+                    {{ form.is_main }}
+                    <label class="form-check-label">Matriz</label>
+                </div>
+                <div class="col-md-4 form-check">
+                    {{ form.is_branch }}
+                    <label class="form-check-label">Filial</label>
+                </div>
+                <div class="col-md-4 form-check">
+                    {{ form.is_system }}
+                    <label class="form-check-label">Sistema</label>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Salvar</button>
+                {% comment %} <a href="{% url 'entity-list' %}" class="btn btn-secondary">Cancelar</a> {% endcomment %}
+            </div>
+        </form>
+    </div>
+{% endblock content %}

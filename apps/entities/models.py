@@ -8,6 +8,7 @@ class Entity(TenantAwareModel):
         'CNPJ': 'CNPJ',
     }
     name = models.CharField(max_length=100)
+    fantasy_name = models.CharField(max_length=100, blank=True, null=True)
     slug = models.SlugField(max_length=100, unique=True, blank=True)
     cpf = models.CharField(max_length=11, unique=True, blank=True, null=True)
     cnpj = models.CharField(max_length=14, unique=True, blank=True, null=True)
@@ -15,8 +16,9 @@ class Entity(TenantAwareModel):
     is_active = models.BooleanField(default=True)
     is_client = models.BooleanField(default=False)
     is_shipping_company = models.BooleanField(default=False)
-    is_member_of_tenant = models.BooleanField(default=False)
-    is_accessible = models.BooleanField(default=False, help_text='Allow access to the entity as system company')
+    is_branch = models.BooleanField(default=False)
+    is_main = models.BooleanField(default=False)
+    is_system = models.BooleanField(default=False, help_text='Allow access to the entity as system company')
 
     def __str__(self):
         return self.name

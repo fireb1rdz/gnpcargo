@@ -1,0 +1,83 @@
+/* ===== HEADER ===== */
+.header {
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.header-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* ===== USER ===== */
+.user-menu {
+    display: none;
+}
+
+.user-menu.open {
+    display: block;
+}
+
+/* ===== NAVBAR TOPO ===== */
+.topbar {
+    background: #2c3e50;
+}
+
+.topbar .menu {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    list-style: none;
+}
+
+.topbar .menu-item {
+    position: relative;
+}
+
+.topbar .menu-item>a {
+    color: #ecf0f1;
+    padding: 14px 18px;
+    display: block;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.topbar .menu-item>a:hover {
+    background: #34495e;
+}
+
+/* ===== SUBMENU ===== */
+.topbar .submenu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: #22313f;
+    min-width: 220px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .25);
+    z-index: 1000;
+}
+
+.topbar .submenu li a {
+    padding: 12px 16px;
+    color: #ecf0f1;
+    display: block;
+}
+
+.topbar .submenu li a:hover {
+    background: #34495e;
+}
+
+.menu-item.active>.submenu {
+    display: block;
+}
+
+/* ===== MAIN ===== */
+.main-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 32px 24px;
+}
