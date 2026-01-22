@@ -51,7 +51,6 @@ class Package(TenantAwareModel):
     )
     tracking_code = models.CharField(max_length=255)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    codification = models.ForeignKey(Codification, on_delete=models.PROTECT)
 
     length = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     width = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -63,6 +62,7 @@ class Package(TenantAwareModel):
         return self.length * self.width * self.height
 
 class PhysicalSpace(TenantAwareModel):
+    entity = models.IntegerField()
     SPACE_TYPE_CHOICES = (
         ("WAREHOUSE", "Warehouse"),
         ("ZONE", "Zone"),
@@ -74,15 +74,6 @@ class PhysicalSpace(TenantAwareModel):
         ("DOCK", "Dock"),
         ("STAGING", "Staging"),
     )
-    control_mode = models.CharField(
-        max_length=20,
-        choices=(
-            ("INVOICE", "Control by Invoice"),
-            ("VOLUME", "Control by Volume"),
-        ),
-        default="INVOICE"
-    )
-    entity = models.IntegerField()
 
     parent = models.ForeignKey(
         "self",
