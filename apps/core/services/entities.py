@@ -20,3 +20,24 @@ class EntityServiceInterface(ABC):
     @abstractmethod
     def get_entity(self, tenant, entity_id):
         pass
+
+class EntityAddressServiceInterface(ABC):
+    @abstractmethod
+    def create_entity_address(self, entity, data):
+        pass
+
+    @abstractmethod
+    def update_entity_address(self, entity_address, data):
+        pass
+
+    @abstractmethod
+    def delete_entity_address(self, entity_address):
+        pass
+
+    @abstractmethod
+    def list_entity_addresses(self, entity):
+        pass
+
+    @abstractmethod
+    def get_entity_address(self, entity_address_id):
+        pass

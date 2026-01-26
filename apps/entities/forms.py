@@ -8,8 +8,8 @@ class EntityForm(ModelForm):
         fields = [
             "name", "cpf", "cnpj", "cpforcnpj",
             "is_active", "is_client",
-            "is_shipping_company", "is_branch",
-            "is_system", "is_main"
+            "is_carrier", "is_branch",
+            "is_system", "economic_group"
         ]
         widgets = {
             "name": forms.TextInput(attrs={"class": "form-control"}),
@@ -19,8 +19,8 @@ class EntityForm(ModelForm):
 
             "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "is_client": forms.CheckboxInput(attrs={"class": "form-check-input"}),
-            "is_shipping_company": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "is_carrier": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "is_branch": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "is_system": forms.CheckboxInput(attrs={"class": "form-check-input"}),
-            "is_main": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "economic_group": forms.Select(attrs={"class": "form-select"}),
         }

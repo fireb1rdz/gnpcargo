@@ -20,6 +20,7 @@ class Tenant(TenantMixin, TimeStampedModel):
     name = models.CharField(_("Name"), max_length=255)
     slug = models.SlugField(unique=True, blank=True)
     is_active = models.BooleanField(default=True)
+    
 
     def __str__(self):
         return self.name

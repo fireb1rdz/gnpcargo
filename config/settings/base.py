@@ -32,6 +32,7 @@ SECRET_KEY = env('SECRET_KEY')
 
 SHARED_APPS = (
     'django_tenants',  
+    'widget_tweaks',
     'apps.core',
     'django.contrib.contenttypes',
     'django.contrib.staticfiles'
@@ -40,6 +41,8 @@ SHARED_APPS = (
 TENANT_APPS = (
     'apps.entities',
     'apps.users',
+    'apps.stock',
+    'apps.logistics',
     'django.contrib.auth',
     'django.contrib.sessions',
     'django.contrib.sites',

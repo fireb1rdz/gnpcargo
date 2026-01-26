@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+{% block content %}
+    <div class="container py-4">
+        <h1 class="mb-4">Criar Conferência</h1>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+            <!-- Forma de criação -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Forma de criação</h5>
+                    {% for radio in form.creation_mode %}
+                        <div class="form-check">
+                            {{ radio.tag }}
+                            <label class="form-check-label" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <!-- VIA CT-e -->
+            <div id="cte-section" class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Importação por CT-e</h5>
+                    <div class="mb-3">
+                        <label class="form-label" for="{{ form.cte_files.id_for_label }}">Arquivos CT-e</label>
+                        {{ form.cte_files|add_class:"form-control" }}
+                        {% if form.cte_files.errors %}<div class="invalid-feedback d-block">{{ form.cte_files.errors }}</div>{% endif %}
+                        <div class="form-text">Permite importar múltiplos arquivos.</div>
+                    </div>
+                </div>
+            </div>
+            <!-- MANUAL -->
+            <div id="manual-section" class="card mb-4" style="display:none;">
+                <div class="card-body">
+                    <h5 class="card-title">Criação Manual</h5>
+                    <div class="mb-3">
+                        <label class="form-label" for="{{ form.document_type.id_for_label }}">Tipo de documento</label>
+                        {{ form.document_type|add_class:"form-select" }}
+                        {% if form.document_type.errors %}
+                            <div class="invalid-feedback d-block">{{ form.document_type.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="{{ form.document_number.id_for_label }}">Chave de acesso</label>
+                        {{ form.document_number|add_class:"form-control" }}
+                        {% if form.document_number.errors %}
+                            <div class="invalid-feedback d-block">{{ form.document_number.errors }}</div>
+                        {% endif %}
+                        <div class="form-text">Obrigatório para criação manual.</div>
+                    </div>
+                </div>
+            </div>
+            <!-- Entidades -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Entidades</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="{{ form.source_entity.id_for_label }}">Origem</label>
+                            {{ form.source_entity|add_class:"form-select" }}
+                            {% if form.source_entity.errors %}
+                                <div class="invalid-feedback d-block">{{ form.source_entity.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="{{ form.destination_entity.id_for_label }}">Destino</label>
+                            {{ form.destination_entity|add_class:"form-select" }}
+                            {% if form.destination_entity.errors %}
+                                <div class="invalid-feedback d-block">{{ form.destination_entity.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Ações -->
+            <div class="d-flex justify-content-end">
+                <button type="submit" class="btn btn-primary">Criar Conferência</button>
+            </div>
+        </form>
+    </div>
+    <script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    // Inicializa Select2 em todos os selects marcados
+    $('.select2').select2({
+        width: '100%',
+        theme: 'bootstrap-5',
+        placeholder: 'Selecione uma opção',
+        allowClear: true
+    });
+
+    const cteSection = document.getElementById("cte-section");
+    const manualSection = document.getElementById("manual-section");
+
+    const radios = document.querySelectorAll("input[name='creation_mode']");
+    const cteInput = document.getElementById("{{ form.cte_files.id_for_label }}");
+    const docNumberInput = document.getElementById("{{ form.document_number.id_for_label }}");
+    const docTypeSelect = document.getElementById("{{ form.document_type.id_for_label }}");
+
+    function toggleSections() {
+        const mode = document.querySelector("input[name='creation_mode']:checked").value;
+
+        if (mode === "cte") {
+            cteSection.style.display = "block";
+            manualSection.style.display = "none";
+
+            cteInput.required = true;
+            docNumberInput.required = false;
+            docTypeSelect.required = false;
+        } else {
+            cteSection.style.display = "none";
+            manualSection.style.display = "block";
+
+            cteInput.required = false;
+            docNumberInput.required = true;
+            docTypeSelect.required = true;
+        }
+    }
+
+    radios.forEach(radio => radio.addEventListener("change", toggleSections));
+    toggleSections();
+});
+    </script>
+{% endblock %}
