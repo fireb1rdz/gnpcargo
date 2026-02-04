@@ -12,17 +12,12 @@
         <div class="card shadow">
             <div class="card-body">
                 <h3 class="mb-3 text-center">Conferência de volumes</h3>
-                <form action="{% url 'logistics:conference_add_package' conference.id %}"
-                      method="post">
-                    {% csrf_token %}
-                    <!-- INPUT DE BIPAGEM -->
-                    <input id="barcodeInput"
-                           name="package_code"
-                           type="text"
-                           class="form-control form-control-lg mb-3"
-                           placeholder="Bipe o código do volume..."
-                           autofocus>
-                </form>
+                <!-- INPUT DE BIPAGEM -->
+                <input id="barcodeInput"
+                       name="package_code"
+                       type="text"
+                       class="form-control form-control-lg mb-3"
+                       placeholder="Bipe o código do volume...">
                 <!-- INFO DO DOCUMENTO -->
                 <div class="alert alert-secondary text-center">
                     <input type="hidden" name="conference_id" value="{{ conference.id }}">

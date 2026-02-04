@@ -81,8 +81,6 @@ class ConferenceAddPackageView(View):
         except Exception:
             package_code = None
 
-        print("PACKAGE RECEBIDO:", package_code)
-
         if not package_code:
             return JsonResponse({"error": "package_code vazio"}, status=400)
 
@@ -93,6 +91,7 @@ class ConferenceAddPackageView(View):
             user=request.user,
             conference_id=conference_id,
             package_code=package_code,
+            status="ok",
         )
 
         return JsonResponse({"status": "ok"})
@@ -100,11 +99,29 @@ class ConferenceAddPackageView(View):
 class ConferenceRemovePackageView(View):
     def post(self, request, conference_id):
         conference_application_service = get_conference_application_service()
-        package_code = request.POST.get("package_code")
+        data = json.loads(request.body)
+        package_code = data.get("package_code")
         conference_application_service.remove_package_from_conference(
             tenant=request.tenant,
-            user=request.user,
             conference_id=conference_id,
             package_code=package_code,
         )
         return JsonResponse({"status": "ok"})
+
+class GetConferenceItemsView(View):
+    def get(self, request, conference_id):
+        conference_application_service = get_conference_application_service()
+        conference_items = conference_application_service.get_conference_items(
+            tenant=request.tenant,
+            conference_id=conference_id,
+        )
+        result = [
+            {
+                "id": item.id,
+                "package_code": item.package.tracking_code,
+                "status": item.status
+            }
+            for item in conference_items
+        ]
+
+        return JsonResponse(result, safe=False)

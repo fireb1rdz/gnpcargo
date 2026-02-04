@@ -28,3 +28,6 @@ class PackageService(PackageServiceInterface):
             created_by=holder,
             holder=holder
         )
+    
+    def get_package_by_code(self, tenant, package_code):
+        return Package.objects.get(tenant=tenant, tracking_code=package_code)

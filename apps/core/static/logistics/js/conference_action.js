@@ -6,7 +6,33 @@ document.addEventListener("DOMContentLoaded", function () {
     const blueCounter = document.getElementById("blueCounter");
     const resetCounter = document.getElementById("resetCounter");
     const conferenceId = CONFERENCE_ID;
+    const conferenceItems = [];
 
+    async function getConferenceItems() {
+        try {
+            const response = await fetch(`/logistica/conferencia/items/${conferenceId}/`);
+            const data = await response.json();
+
+            data.forEach(item => {
+                addRow(item.package_code, item.status);
+
+                // só incrementa contador se já estiver conferido
+                if (item.status === "CHECKED") {
+                    count++;
+                }
+
+            });
+            updateCounters();
+
+        } catch (error) {
+            console.error("Erro ao carregar itens da conferência:", error);
+        }
+    }
+
+
+    setTimeout(() => {
+        input.focus();
+    }, 300);
 
     let count = 0;
     let blueCount = 0;
@@ -18,8 +44,12 @@ document.addEventListener("DOMContentLoaded", function () {
         blueCounter.textContent = blueCount;
     }
 
-    function addRow(package_code) {
+    function addRow(package_code, status) {
         const row = document.createElement("tr");
+
+        if (status === "ok") {
+            row.classList.add("table-success");   // linha verde
+        }
 
         row.innerHTML = `
             <td>${package_code}</td>
@@ -53,8 +83,9 @@ document.addEventListener("DOMContentLoaded", function () {
         const response = await sendPost(ADD_ENDPOINT, {
             package_code: package_code
         });
+        const data = await response.json();
         if (response.ok) {
-            addRow(package_code);
+            addRow(package_code, data.status);
             count++;
             blueCount++;
             updateCounters();
@@ -63,22 +94,23 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    async function removePackage(identity, rowElement) {
-
+    async function removePackage(package_code, rowElement) {
         const response = await sendPost(REMOVE_ENDPOINT, {
-            identity: identity
+            package_code: package_code
         });
 
         if (response.ok) {
             rowElement.remove();
-            count--;
+            if (count > 0) {
+                count--;
+            }
             updateCounters();
         } else {
             alert("Erro ao remover volume");
         }
     }
 
-    input.addEventListener("keypress", function (e) {
+    input.addEventListener("keydown", function (e) {
         if (e.key === "Enter") {
             e.preventDefault();
             const value = input.value.trim();
@@ -96,4 +128,5 @@ document.addEventListener("DOMContentLoaded", function () {
         updateCounters();
     });
 
+    getConferenceItems();
 });

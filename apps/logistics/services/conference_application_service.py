@@ -56,7 +56,7 @@ class ConferenceApplicationService:
                 status="pending",
             )
 
-    def add_package_to_conference(self, tenant, user, conference_id, package_code):
+    def add_package_to_conference(self, tenant, user, conference_id, package_code, status):
         conference = Conference.objects.get(tenant=tenant, id=conference_id)
         package = self.package_service.create_generated_package(
             tenant=tenant,
@@ -68,11 +68,21 @@ class ConferenceApplicationService:
             tenant=tenant,
             conference=conference,
             package=package,
-            status="ok",
+            status=status,
         )
 
         conference.packages.add(conference_item)
 
+    def remove_package_from_conference(self, tenant, conference_id, package_code):
+        conference = Conference.objects.get(tenant=tenant, id=conference_id)
+        package = self.package_service.get_package_by_code(tenant, package_code)
+        conference_item = ConferenceItem.objects.get(tenant=tenant, conference=conference, package=package)
+        conference_item.delete()
+
     def get_origin(self, tenant, conference_id):
         conference = Conference.objects.get(tenant=tenant, id=conference_id)
         return conference.origin
+
+    def get_conference_items(self, tenant, conference_id):
+        conference = Conference.objects.get(tenant=tenant, id=conference_id)
+        return conference.packages.all()

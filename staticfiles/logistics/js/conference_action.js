@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const resetCounter = document.getElementById("resetCounter");
     const conferenceId = CONFERENCE_ID;
 
+
     let count = 0;
     let blueCount = 0;
 
@@ -52,14 +53,13 @@ document.addEventListener("DOMContentLoaded", function () {
         const response = await sendPost(ADD_ENDPOINT, {
             package_code: package_code
         });
-
         if (response.ok) {
             addRow(package_code);
             count++;
             blueCount++;
             updateCounters();
         } else {
-            alert("Erro ao adicionar volume");
+            alert("Erro ao adicionar volume")
         }
     }
 
@@ -80,6 +80,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     input.addEventListener("keypress", function (e) {
         if (e.key === "Enter") {
+            e.preventDefault();
             const value = input.value.trim();
             console.log(value)
 
