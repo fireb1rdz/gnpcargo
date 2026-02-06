@@ -7,17 +7,67 @@ document.addEventListener("DOMContentLoaded", function () {
     const resetCounter = document.getElementById("resetCounter");
     const conferenceId = CONFERENCE_ID;
     const conferenceItems = [];
+    const conferenceMode = CONFERENCE_MODE;
+    const OkSound = document.getElementById("OkSound");
+    const ErrorSound = document.getElementById("ErrorSound");
+    let scanQueue = [];
+    let isProcessing = false;
+
+    function playOk() {
+        const audio = new Audio(OkSound.src);
+        audio.play();
+    }
+
+    function playError() {
+        const audio = new Audio(ErrorSound.src);
+        audio.play();
+    }
+
+    function enqueueScan(package_code) {
+        scanQueue.push(package_code);
+        processQueue();
+    }
+
+    async function processQueue() {
+        if (isProcessing) return;
+
+        if (scanQueue.length === 0) return;
+
+        isProcessing = true;
+
+        const package_code = scanQueue.shift();
+
+        try {
+            if (CONFERENCE_MODE === "write") {
+                await addPackage(package_code);
+            } else if (CONFERENCE_MODE === "read") {
+                await readPackage(package_code);
+            }
+        } catch (error) {
+            console.error("Erro no processamento da fila:", error);
+        }
+
+        isProcessing = false;
+
+        // processa próximo item automaticamente
+        processQueue();
+    }
+
+
 
     async function getConferenceItems() {
         try {
             const response = await fetch(`/logistica/conferencia/items/${conferenceId}/`);
             const data = await response.json();
+            let playSound = false
 
             data.forEach(item => {
-                addRow(item.package_code, item.status);
+                addRow(item.package_code, item.status, playSound);
 
                 // só incrementa contador se já estiver conferido
-                if (item.status === "CHECKED") {
+                if (conferenceMode === "read" && item.status === "ok") {
+                    count++;
+                } else if (conferenceMode === "write" && item.status === "pending") {
                     count++;
                 }
 
@@ -44,11 +94,18 @@ document.addEventListener("DOMContentLoaded", function () {
         blueCounter.textContent = blueCount;
     }
 
-    function addRow(package_code, status) {
+    function addRow(package_code, status, playSound) {
         const row = document.createElement("tr");
 
-        if (status === "ok") {
+        if (status === "ok" && conferenceMode === "read" || status === "pending" && conferenceMode === "write") {
             row.classList.add("table-success");   // linha verde
+            if (playSound) {
+                playOk();
+            }
+        } else if (status === "error") {
+            if (playSound) {
+                playError();
+            }
         }
 
         row.innerHTML = `
@@ -59,7 +116,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 </button>
             </td>
         `;
-
+        row.setAttribute("data-package-code", package_code);
         row.querySelector(".remove-btn").addEventListener("click", function () {
             removePackage(package_code, row);
         });
@@ -79,13 +136,13 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     async function addPackage(package_code) {
-
+        let playSound = true
         const response = await sendPost(ADD_ENDPOINT, {
             package_code: package_code
         });
         const data = await response.json();
         if (response.ok) {
-            addRow(package_code, data.status);
+            addRow(package_code, data.status, playSound);
             count++;
             blueCount++;
             updateCounters();
@@ -93,6 +150,37 @@ document.addEventListener("DOMContentLoaded", function () {
             alert("Erro ao adicionar volume")
         }
     }
+
+    async function updateRow(package_code, status) {
+        const row = document.querySelector(`tr[data-package-code="${package_code}"]`);
+        console.log(row)
+        if (row) {
+            row.classList.remove("table-success", "table-danger");
+            if (status === "ok") {
+                playOk();
+                row.classList.add("table-success");
+            } else if (status === "error") {
+                playError();
+                row.classList.add("table-danger");
+            }
+        }
+    }
+
+    async function readPackage(package_code) {
+        const response = await sendPost(READ_ENDPOINT, {
+            package_code: package_code
+        });
+        const data = await response.json();
+        if (data.status === "ok") {
+            updateRow(package_code, data.status);
+            count++;
+            blueCount++;
+            updateCounters();
+        } else if (data.status === "error") {
+            updateRow(package_code, data.status);
+        }
+    }
+
 
     async function removePackage(package_code, rowElement) {
         const response = await sendPost(REMOVE_ENDPOINT, {
@@ -117,9 +205,10 @@ document.addEventListener("DOMContentLoaded", function () {
             console.log(value)
 
             if (value) {
-                addPackage(value);
+                enqueueScan(value);
                 input.value = "";
             }
+
         }
     });
 

@@ -49,3 +49,6 @@ class PartyService(PartyServiceInterface):
 
     def get_roles_for_entity(self, entity):
         return Party.objects.filter(entity=entity).values_list("role", flat=True)
+
+    def party_is_system(self, party):
+        return party.entity.is_system

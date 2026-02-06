@@ -30,7 +30,7 @@
         <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
             <div class="container-fluid">
                 <!-- Logo -->
-                <a class="navbar-brand fw-semibold" href="#">GNP</a>
+                <a class="navbar-brand fw-semibold" href="#">GNP ERP - {{ request.tenant.name|default:"" }}</a>
                 <!-- Mobile toggle -->
                 <button class="navbar-toggler"
                         type="button"
@@ -70,21 +70,15 @@
                                 </li>
                             </ul>
                         </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle"
-                               href="#"
-                               role="button"
-                               data-bs-toggle="dropdown">Relatórios</a>
+                        {% comment %} <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Relatórios</a>
                             <ul class="dropdown-menu">
                             </ul>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#">Configurações</a>
-                        </li>
+                        </li> {% endcomment %}
                     </ul>
                     <!-- Empresa + usuário -->
                     <div class="d-flex align-items-center gap-3">
-                        <span class="text-secondary small">{{ company.name|default:"Company Name" }}</span>
+                        <span class="text-secondary small">Acessando: {{ request.user.entity.name }}</span>
                         <div class="dropdown">
                             <a href="#"
                                class="d-flex align-items-center text-white text-decoration-none dropdown-toggle"
@@ -97,12 +91,6 @@
                                 <strong>{{ request.user.first_name|default:"Usuário" }}</strong>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
-                                <li>
-                                    <a class="dropdown-item" href="#">Perfil</a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" href="#">Configurações</a>
-                                </li>
                                 <li>
                                     <hr class="dropdown-divider">
                                 </li>

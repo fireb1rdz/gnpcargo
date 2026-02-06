@@ -4,15 +4,15 @@ from django.utils.timezone import now
 
 from apps.logistics.models import Conference, ConferenceItem
 from domain.contracts.stock import PackageServiceInterface
-from domain.registry.module_registry import ModuleRegistry
-from domain.contracts.logistics import ConferenceServiceInterface
+from domain.contracts.entity import PartyServiceInterface
 from domain.dto.fiscal import CTEDTO
 
 class ConferenceApplicationService:
-    def __init__(self, package_service: PackageServiceInterface):
+    def __init__(self, package_service: PackageServiceInterface, party_service: PartyServiceInterface):
         self.package_service = package_service
+        self.party_service = party_service
 
-    def create_conference_by_access_key(self, tenant, user, origin, destination, event_type, access_key):
+    def create_conference_by_access_key(self, tenant, user, origin, destination, event_type, access_key, mode):
         conference = Conference.objects.create(
             tenant=tenant,
             created_by=user,
@@ -20,7 +20,8 @@ class ConferenceApplicationService:
             destination=destination,
             event_type=event_type,
             document_number=access_key,
-            document_type="invoice"
+            document_type="invoice",
+            mode=mode
         )
         return conference
 
@@ -71,7 +72,7 @@ class ConferenceApplicationService:
             status=status,
         )
 
-        conference.packages.add(conference_item)
+        conference.items.add(conference_item)
 
     def remove_package_from_conference(self, tenant, conference_id, package_code):
         conference = Conference.objects.get(tenant=tenant, id=conference_id)
@@ -85,4 +86,52 @@ class ConferenceApplicationService:
 
     def get_conference_items(self, tenant, conference_id):
         conference = Conference.objects.get(tenant=tenant, id=conference_id)
-        return conference.packages.all()
+        return conference.items.all()
+
+    def finish_conference(self, tenant, conference_id, user):
+        conference = Conference.objects.get(tenant=tenant, id=conference_id)
+        if self.party_service.party_is_system(conference.destination) and conference.mode == "write":
+            self.create_conference_in_destination(tenant, conference_id, user)
+        conference.status = "finished"
+        conference.finished_by = user
+        conference.end_date = now()
+        conference.save()
+
+    def start_conference(self, tenant, conference_id, user):
+        conference = Conference.objects.get(tenant=tenant, id=conference_id)
+        conference.status = "in_progress"
+        conference.started_by = user
+        conference.start_date = now()
+        conference.save()
+
+    def create_conference_in_destination(self, tenant, conference_id, user):
+        conference = Conference.objects.get(tenant=tenant, id=conference_id)
+        conference_items = conference.items.all()
+        conference_in_destination = Conference.objects.create(
+            tenant=tenant,
+            created_by=user,
+            parent_conference=conference,
+            origin=conference.origin,
+            destination=conference.destination,
+            status="pending",
+            event_type="unload",
+            document_number=conference.document_number,
+            document_type=conference.document_type,
+            mode="read"
+        )
+        conference_in_destination_items = []
+        for conference_item in conference_items:
+            conference_in_destination_items.append(ConferenceItem(tenant=tenant, conference=conference_in_destination, package=conference_item.package, status="pending"))
+        
+        ConferenceItem.objects.bulk_create(conference_in_destination_items)
+
+    def read_package_from_conference(self, tenant, conference_id, package_code, user):
+        conference = Conference.objects.get(tenant=tenant, id=conference_id)
+        package = self.package_service.get_package_by_code(tenant, package_code)
+        conference_item = ConferenceItem.objects.filter(tenant=tenant, conference=conference, package=package, status="pending").first()
+        if not conference_item:
+            raise ValueError("Package not found in conference")
+        conference_item.status = "ok"
+        conference_item.read_by = user
+        conference_item.read_at = now()
+        conference_item.save()

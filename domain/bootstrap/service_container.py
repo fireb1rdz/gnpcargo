@@ -11,7 +11,7 @@ def get_party_service() -> PartyServiceInterface:
     return PartyService()
 
 def get_conference_application_service() -> ConferenceServiceInterface:
-    return ConferenceApplicationService(get_package_service())
+    return ConferenceApplicationService(get_package_service(), get_party_service())
 
 def get_package_service() -> PackageServiceInterface:
     return PackageService()

@@ -152,3 +152,9 @@ SITE_ID = 1
 DEFAULT_FILE_STORAGE = "django_tenants.files.storage.TenantFileSystemStorage"
 
 MULTITENANT_RELATIVE_MEDIA_ROOT = ""  # (default: create sub-directory for each tenant)
+
+LANGUAGE_CODE = 'pt-br'
+
+LOCALE_PATHS = [
+    os.path.join(BASE_DIR, "locale"),
+]

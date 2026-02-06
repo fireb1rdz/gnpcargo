@@ -8,5 +8,5 @@ class EntitiesConfig(AppConfig):
     
     def ready(self):
         from domain.registry.module_registry import ModuleRegistry
-        from apps.entities.services.entity_service import EntityService
-        ModuleRegistry.register('entities', EntityService)
+        from apps.entities.module import EntitiesModule
+        ModuleRegistry.register(namespace='entities', service_instance=EntitiesModule)

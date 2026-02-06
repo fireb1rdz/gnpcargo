@@ -8,10 +8,48 @@
           href="{% static 'logistics/css/conference_action.css' %}">
 {% endblock head %}
 {% block content %}
+    <audio id="OkSound" src="{% static 'logistics/mp3/ok.mp3' %}"></audio>
+    <audio id="ErrorSound" src="{% static 'logistics/mp3/error.mp3' %}"></audio>
+    <!-- Modal -->
+    <div class="modal fade"
+         id="finalizarModal"
+         tabindex="-1"
+         aria-labelledby="finalizarModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <form action="{% url 'logistics:finish_conference' conference.id %}"
+                  method="post">
+                {% csrf_token %}
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5" id="finalizarModalLabel">Finalizar Conferência</h1>
+                        <button type="button"
+                                class="btn-close"
+                                data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Tem certeza que deseja finalizar a conferência?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Finalizar</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
     <div class="container mt-4">
         <div class="card shadow">
             <div class="card-body">
-                <h3 class="mb-3 text-center">Conferência de volumes</h3>
+                <h3 class="mb-3 text-center">
+                    Conferência de volumes -
+                    {% if conference.mode == "write" %}
+                        REGISTRO INICIAL
+                    {% else %}
+                        LEITURA
+                    {% endif %}
+                </h3>
                 <!-- INPUT DE BIPAGEM -->
                 <input id="barcodeInput"
                        name="package_code"
@@ -55,15 +93,18 @@
                     </tbody>
                 </table>
             </div>
+            <button class="btn btn-success btn-block"
+                    data-bs-toggle="modal"
+                    data-bs-target="#finalizarModal">Finalizar</button>
         </div>
     </div>
     <script>
-    console.log("TESTE: script carregado");
     const ADD_ENDPOINT = "{% url 'logistics:conference_add_package' conference.id %}";
     const REMOVE_ENDPOINT = "{% url 'logistics:conference_remove_package' conference.id %}";
+    const READ_ENDPOINT = "{% url 'logistics:conference_read_package' conference.id %}";
     const CSRF_TOKEN = "{{ csrf_token }}";
     const CONFERENCE_ID = "{{ conference.id }}";
-    console.log(ADD_ENDPOINT)
+    const CONFERENCE_MODE = "{{ conference.mode }}";
     </script>
     <script src="{% static 'logistics/js/conference_action.js' %}"></script>
 {% endblock content %}

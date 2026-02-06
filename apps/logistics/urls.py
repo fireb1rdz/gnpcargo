@@ -1,5 +1,5 @@
 from django.urls import path, include
-from .views import ConferenceCreateView, ConferenceListView, ConferenceActionView, ConferenceAddPackageView, ConferenceRemovePackageView, GetConferenceItemsView
+from .views import ConferenceCreateView, ConferenceListView, ConferenceActionView, ConferenceAddPackageView, ConferenceRemovePackageView, GetConferenceItemsView, FinishConferenceView, ConferenceReadPackageView
 
 app_name = "logistics"
 urlpatterns = [
@@ -9,4 +9,6 @@ urlpatterns = [
     path('logistica/conferencia/adicionar_volume/<int:conference_id>/', ConferenceAddPackageView.as_view(), name='conference_add_package'),
     path('logistica/conferencia/remover_volume/<int:conference_id>/', ConferenceRemovePackageView.as_view(), name='conference_remove_package'),
     path('logistica/conferencia/items/<int:conference_id>/', GetConferenceItemsView.as_view(), name='conference_items'),
+    path('logistica/conferencia/terminar/<int:conference_id>/', FinishConferenceView.as_view(), name='finish_conference'),
+    path('logistica/conferencia/ler_volume/<int:conference_id>/', ConferenceReadPackageView.as_view(), name='conference_read_package'),
 ]

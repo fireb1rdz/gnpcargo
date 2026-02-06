@@ -3,6 +3,7 @@ from django.views import View
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.db import transaction
+from django.db.models import Q
 from django.views.generic import ListView
 from .models import Conference
 # from domain.schemas.conference_table import ConferenceTableSchema
@@ -22,16 +23,12 @@ class ConferenceCreateView(View):
         return render(request, self.template_name, {"form": form})
 
     def post(self, request):
-        logged_entity = request.user.entity
-
         form = ConferenceCreateForm(request.POST, request.FILES)
 
         if not form.is_valid():
             return render(request, self.template_name, {"form": form})
 
         creation_mode = form.cleaned_data["creation_mode"]
-        cte_files = form.cleaned_data["cte_files"]
-        nfe_files = form.cleaned_data["nfe_files"]
         origin = form.cleaned_data["origin"]
         destination = form.cleaned_data["destination"]
         event_type = form.cleaned_data["event_type"]
@@ -48,7 +45,8 @@ class ConferenceCreateView(View):
                             destination=destination,
                             event_type=event_type,
                             tenant=request.tenant,
-                            user=request.user
+                            user=request.user,
+                            mode="write"
                         )
             messages.success(request, "Conferência criada com sucesso.")
             return redirect("logistics:conference_list")
@@ -62,14 +60,24 @@ class ConferenceListView(ListView):
     context_object_name = "conferences"
     paginate_by = 10
 
-    def get_queryset(self):
-        return Conference.objects.filter(tenant=self.request.tenant).order_by("-created_at")
+    def get_queryset(self): 
+        return Conference.objects.filter(
+            tenant=self.request.tenant
+        ).filter(
+            (
+                Q(origin__entity=self.request.user.entity) & Q(mode="write")
+            ) |
+            (
+                Q(destination__entity=self.request.user.entity) & Q(mode="read")
+            )
+        ).order_by("-created_at")
 
 class ConferenceActionView(View):
     template_name = "logistics/conference_action.html"
 
     def get(self, request, conference_id):
         conference = Conference.objects.get(id=conference_id)
+        
         return render(request, self.template_name, {"conference": conference})
 
 class ConferenceAddPackageView(View):
@@ -91,10 +99,10 @@ class ConferenceAddPackageView(View):
             user=request.user,
             conference_id=conference_id,
             package_code=package_code,
-            status="ok",
+            status="pending",
         )
 
-        return JsonResponse({"status": "ok"})
+        return JsonResponse({"status": "pending"})
 
 class ConferenceRemovePackageView(View):
     def post(self, request, conference_id):
@@ -125,3 +133,30 @@ class GetConferenceItemsView(View):
         ]
 
         return JsonResponse(result, safe=False)
+
+class FinishConferenceView(View):
+    def post(self, request, conference_id):
+        conference_application_service = get_conference_application_service()
+        conference_application_service.finish_conference(
+            tenant=request.tenant,
+            conference_id=conference_id,
+            user=request.user,
+        )
+        messages.success(request, "Conferência finalizada com sucesso.")
+        return redirect("logistics:conference_list")
+
+class ConferenceReadPackageView(View):
+    def post(self, request, conference_id):
+        conference_application_service = get_conference_application_service()
+        data = json.loads(request.body)
+        package_code = data.get("package_code")
+        try:
+            conference_application_service.read_package_from_conference(
+                tenant=request.tenant,
+                conference_id=conference_id,
+                package_code=package_code,
+                user=request.user,
+            )
+            return JsonResponse({"status": "ok"})
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": str(e)}, status=400)

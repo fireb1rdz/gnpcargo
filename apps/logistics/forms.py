@@ -73,7 +73,7 @@ class ConferenceCreateForm(forms.Form):
     )
 
     event_type = forms.ChoiceField(
-        choices=Conference.CONFERENCE_EVENT_TYPE_CHOICES,
+        choices=Conference.EVENT_TYPE_CHOICES,
         widget=forms.Select(attrs={"class": "form-select select2"})
     )
 
