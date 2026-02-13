@@ -50,11 +50,24 @@
                         LEITURA
                     {% endif %}
                 </h3>
+                <!-- HISTÓRICO DE LEITURA -->
+                <div class="mt-4">
+                    <h5>Histórico de Leitura</h5>
+                    <div id="readingHistory"
+                         class="border rounded p-2"
+                         style="height: 150px;
+                                overflow-y: auto;
+                                background: #f8f9fa;
+                                font-family: monospace;
+                                font-size: 18px">
+                        <!-- Histórico será inserido aqui -->
+                    </div>
+                </div>
                 <!-- INPUT DE BIPAGEM -->
                 <input id="barcodeInput"
                        name="package_code"
                        type="text"
-                       class="form-control form-control-lg mb-3"
+                       class="form-control form-control-lg mb-3 mt-3"
                        placeholder="Bipe o código do volume...">
                 <!-- INFO DO DOCUMENTO -->
                 <div class="alert alert-secondary text-center">

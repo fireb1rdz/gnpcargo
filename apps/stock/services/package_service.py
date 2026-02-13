@@ -30,4 +30,4 @@ class PackageService(PackageServiceInterface):
         )
     
     def get_package_by_code(self, tenant, package_code):
-        return Package.objects.get(tenant=tenant, tracking_code=package_code)
+        return Package.objects.filter(tenant=tenant, tracking_code=package_code).first()

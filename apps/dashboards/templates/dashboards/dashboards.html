@@ -1,2 +1,7 @@
 {% extends 'base.html' %}
-{% include 'dashboards/partials/_volumes_by_day.html' %}
+{% block title %}
+    Dashboards
+{% endblock title %}
+{% block content %}
+    {% include 'dashboards/partials/_volumes_by_day.html' %}
+{% endblock %}
