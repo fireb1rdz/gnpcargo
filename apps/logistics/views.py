@@ -10,7 +10,9 @@ from .models import Conference
 from domain.bootstrap.service_container import get_conference_application_service, get_package_service
 from .forms import ConferenceCreateForm
 from django.http import JsonResponse
+from django.utils import timezone
 import json
+from apps.logistics.exceptions import PackageNotFoundError, PackageAlreadyReadError
 
 class ConferenceCreateView(View):
     template_name = "logistics/conference_create.html"
@@ -69,6 +71,9 @@ class ConferenceListView(ListView):
             ) |
             (
                 Q(destination__entity=self.request.user.entity) & Q(mode="read")
+            ) |
+            (
+                Q(destination__entity=self.request.user.entity) & Q(mode="write")
             )
         ).order_by("-created_at")
 
@@ -77,6 +82,9 @@ class ConferenceActionView(View):
 
     def get(self, request, conference_id):
         conference = Conference.objects.get(id=conference_id)
+        conference.start_date = timezone.now()
+        conference.started_by = request.user
+        conference.save()
         
         return render(request, self.template_name, {"conference": conference})
 
@@ -158,5 +166,7 @@ class ConferenceReadPackageView(View):
                 user=request.user,
             )
             return JsonResponse({"status": "ok"})
-        except Exception as e:
-            return JsonResponse({"status": "error", "message": str(e)}, status=400)
+        except PackageNotFoundError as e:
+            return JsonResponse({"status": "not_found", "message": str(e)}, status=400)
+        except PackageAlreadyReadError as e:
+            return JsonResponse({"status": "already_read", "message": str(e)}, status=400)

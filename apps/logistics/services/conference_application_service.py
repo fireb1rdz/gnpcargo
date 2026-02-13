@@ -6,6 +6,7 @@ from apps.logistics.models import Conference, ConferenceItem
 from domain.contracts.stock import PackageServiceInterface
 from domain.contracts.entity import PartyServiceInterface
 from domain.dto.fiscal import CTEDTO
+from apps.logistics.exceptions import PackageAlreadyReadError, PackageNotFoundError
 
 class ConferenceApplicationService:
     def __init__(self, package_service: PackageServiceInterface, party_service: PartyServiceInterface):
@@ -128,9 +129,13 @@ class ConferenceApplicationService:
     def read_package_from_conference(self, tenant, conference_id, package_code, user):
         conference = Conference.objects.get(tenant=tenant, id=conference_id)
         package = self.package_service.get_package_by_code(tenant, package_code)
-        conference_item = ConferenceItem.objects.filter(tenant=tenant, conference=conference, package=package, status="pending").first()
+        if not package:
+            raise PackageNotFoundError("Package not found in conference")
+        conference_item = ConferenceItem.objects.filter(tenant=tenant, conference=conference, package=package).first()
         if not conference_item:
-            raise ValueError("Package not found in conference")
+            raise PackageNotFoundError("Package not found in conference")
+        if conference_item.status == "ok":
+            raise PackageAlreadyReadError("Package already read")
         conference_item.status = "ok"
         conference_item.read_by = user
         conference_item.read_at = now()

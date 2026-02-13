@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const totalRead = document.getElementById("totalRead");
     const blueCounter = document.getElementById("blueCounter");
     const resetCounter = document.getElementById("resetCounter");
+    const readingHistory = document.getElementById("readingHistory");
     const conferenceId = CONFERENCE_ID;
     const conferenceItems = [];
     const conferenceMode = CONFERENCE_MODE;
@@ -59,10 +60,8 @@ document.addEventListener("DOMContentLoaded", function () {
         try {
             const response = await fetch(`/logistica/conferencia/items/${conferenceId}/`);
             const data = await response.json();
-            let playSound = false
-
             data.forEach(item => {
-                addRow(item.package_code, item.status, playSound);
+                addRow(item.package_code, item.status);
 
                 // só incrementa contador se já estiver conferido
                 if (conferenceMode === "read" && item.status === "ok") {
@@ -94,18 +93,39 @@ document.addEventListener("DOMContentLoaded", function () {
         blueCounter.textContent = blueCount;
     }
 
-    function addRow(package_code, status, playSound) {
+    function addToHistory(package_code, status) {
+        const entry = document.createElement("div");
+
+        let message = "";
+
+        if (status === "ok") {
+            message = `${package_code}: Lido com sucesso`;
+            entry.style.color = "green";
+        } else if (status === "not_found") {
+            message = `${package_code}: Não localizado`;
+            entry.style.color = "red";
+        } else if (status === "already_read") {
+            message = `${package_code}: Já lido`;
+            entry.style.color = "orange";
+        } else if (status === "pending") {
+            message = `${package_code}: Cadastrado com sucesso`;
+            entry.style.color = "blue";
+        } else {
+            message = `${package_code}: ${status}`;
+        }
+
+        entry.textContent = message;
+
+        readingHistory.prepend(entry);
+    }
+
+
+    function addRow(package_code, status) {
         const row = document.createElement("tr");
 
         if (status === "ok" && conferenceMode === "read" || status === "pending" && conferenceMode === "write") {
             row.classList.add("table-success");   // linha verde
-            if (playSound) {
-                playOk();
-            }
         } else if (status === "error") {
-            if (playSound) {
-                playError();
-            }
         }
 
         row.innerHTML = `
@@ -136,30 +156,31 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     async function addPackage(package_code) {
-        let playSound = true
         const response = await sendPost(ADD_ENDPOINT, {
             package_code: package_code
         });
         const data = await response.json();
+        addToHistory(package_code, data.status);
         if (response.ok) {
-            addRow(package_code, data.status, playSound);
+            playOk();
+            addRow(package_code, data.status);
             count++;
             blueCount++;
             updateCounters();
         } else {
+            playError();
             alert("Erro ao adicionar volume")
         }
     }
 
     async function updateRow(package_code, status) {
         const row = document.querySelector(`tr[data-package-code="${package_code}"]`);
-        console.log(row)
         if (row) {
             row.classList.remove("table-success", "table-danger");
             if (status === "ok") {
                 playOk();
                 row.classList.add("table-success");
-            } else if (status === "error") {
+            } else {
                 playError();
                 row.classList.add("table-danger");
             }
@@ -171,13 +192,15 @@ document.addEventListener("DOMContentLoaded", function () {
             package_code: package_code
         });
         const data = await response.json();
+        addToHistory(package_code, data.status);
         if (data.status === "ok") {
+            playOk();
             updateRow(package_code, data.status);
             count++;
             blueCount++;
             updateCounters();
-        } else if (data.status === "error") {
-            updateRow(package_code, data.status);
+        } else {
+            playError();
         }
     }
 
