@@ -7,24 +7,62 @@ from domain.contracts.stock import PackageServiceInterface
 from domain.contracts.entity import PartyServiceInterface
 from domain.dto.fiscal import CTEDTO
 from apps.logistics.exceptions import PackageAlreadyReadError, PackageNotFoundError
+from django.db import transaction
 
 class ConferenceApplicationService:
     def __init__(self, package_service: PackageServiceInterface, party_service: PartyServiceInterface):
         self.package_service = package_service
         self.party_service = party_service
 
-    def create_conference_by_access_key(self, tenant, user, origin, destination, event_type, access_key, mode):
-        conference = Conference.objects.create(
-            tenant=tenant,
-            created_by=user,
-            origin=origin,
-            destination=destination,
-            event_type=event_type,
-            document_number=access_key,
-            document_type="invoice",
-            mode=mode
-        )
-        return conference
+    def create_conference_by_access_key(
+        self, tenant, user, origin, destination, event_type, access_keys
+    ):
+        conferences = []
+
+        with transaction.atomic():
+            for access_key in access_keys:
+
+                last_conference = (
+                    Conference.objects
+                    .filter(tenant=tenant, document_number=access_key, status="finished")
+                    .order_by("-id")
+                    .first()
+                )
+
+                mode = "read" if last_conference else "write"
+
+                conference = Conference.objects.create(
+                    tenant=tenant,
+                    created_by=user,
+                    origin=origin,
+                    destination=destination,
+                    event_type=event_type,
+                    document_number=access_key,
+                    document_type="invoice",
+                    mode=mode
+                )
+
+                if last_conference:
+                    items = ConferenceItem.objects.filter(
+                        tenant=tenant,
+                        conference=last_conference
+                    )
+
+                    new_items = [
+                        ConferenceItem(
+                            tenant=tenant,
+                            conference=conference,
+                            package=item.package,
+                            status="pending"
+                        )
+                        for item in items
+                    ]
+
+                    ConferenceItem.objects.bulk_create(new_items)
+
+                conferences.append(conference)
+
+        return conferences
 
     def create_from_dto(self, tenant, user, supplier, carrier, client, dto: CTEDTO):
         for nfe in dto.related_nfes:
@@ -78,8 +116,9 @@ class ConferenceApplicationService:
     def remove_package_from_conference(self, tenant, conference_id, package_code):
         conference = Conference.objects.get(tenant=tenant, id=conference_id)
         package = self.package_service.get_package_by_code(tenant, package_code)
-        conference_item = ConferenceItem.objects.get(tenant=tenant, conference=conference, package=package)
-        conference_item.delete()
+        conference_item = ConferenceItem.objects.filter(tenant=tenant, conference=conference, package=package).first()
+        if conference_item:
+            conference_item.delete()
 
     def get_origin(self, tenant, conference_id):
         conference = Conference.objects.get(tenant=tenant, id=conference_id)
@@ -91,7 +130,7 @@ class ConferenceApplicationService:
 
     def finish_conference(self, tenant, conference_id, user):
         conference = Conference.objects.get(tenant=tenant, id=conference_id)
-        if self.party_service.party_is_system(conference.destination) and conference.mode == "write":
+        if self.party_service.party_is_system(conference.destination):
             self.create_conference_in_destination(tenant, conference_id, user)
         conference.status = "finished"
         conference.finished_by = user

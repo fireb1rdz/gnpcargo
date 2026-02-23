@@ -21,7 +21,7 @@ class UserLoginView(LoginView):
         if self.request.session.get("entity_id"):
             self.request.user.entity = Entity.objects.get(id=self.request.session.get("entity_id"))
             self.request.user.save()
-            return reverse_lazy("users:home")
+            return reverse_lazy("dashboards:dashboards")
         else:
             return reverse_lazy("users:login")
             

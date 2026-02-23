@@ -58,6 +58,7 @@ MIDDLEWARE = [
     'django_tenants.middleware.main.TenantMainMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django_session_timeout.middleware.SessionTimeoutMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -159,3 +160,11 @@ LANGUAGE_CODE = 'pt-br'
 LOCALE_PATHS = [
     os.path.join(BASE_DIR, "locale"),
 ]
+
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+SESSION_EXPIRE_SECONDS = 60 * 60 * 5
+
+SESSION_EXPIRE_AFTER_LAST_ACTIVITY = True
+
+SESSION_TIMEOUT_REDIRECT = '/login/'

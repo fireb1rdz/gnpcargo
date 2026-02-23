@@ -7,6 +7,7 @@ from apps.stock.services.package_service import PackageService
 from apps.fiscal.services.process_transport_document_service import ProcessTransportDocumentService
 from apps.fiscal.module import FiscalModule
 from apps.dashboards.module import DashboardsModule
+from apps.finance.module import FinanceModule
 
 def get_party_service() -> PartyServiceInterface:
     return PartyService()
@@ -29,3 +30,6 @@ def get_fiscal_module():
 
 def get_dashboards_module():
     return DashboardsModule()
+
+def get_finance_module():
+    return FinanceModule()

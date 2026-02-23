@@ -70,5 +70,8 @@ class ConferenceItem(TenantAwareModel):
     read_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="read_conference_items", null=True, blank=True)
     read_at = models.DateTimeField(null=True, blank=True)
 
+    def __str__(self):
+        return f"{self.conference} - {self.package}"
+
 
 

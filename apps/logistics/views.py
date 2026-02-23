@@ -30,26 +30,22 @@ class ConferenceCreateView(View):
         if not form.is_valid():
             return render(request, self.template_name, {"form": form})
 
-        creation_mode = form.cleaned_data["creation_mode"]
         origin = form.cleaned_data["origin"]
         destination = form.cleaned_data["destination"]
         event_type = form.cleaned_data["event_type"]
         access_keys = form.cleaned_data["access_keys"]
 
         try:
-            with transaction.atomic():
-                if creation_mode == "access_key":
-                    conference_application_service = get_conference_application_service()
-                    for key in access_keys:
-                        conference_application_service.create_conference_by_access_key(
-                            access_key=key,
-                            origin=origin,
-                            destination=destination,
-                            event_type=event_type,
-                            tenant=request.tenant,
-                            user=request.user,
-                            mode="write"
-                        )
+            conference_application_service = get_conference_application_service()
+            conference_application_service.create_conference_by_access_key(
+                tenant=request.tenant,
+                user=request.user,
+                origin=origin,
+                destination=destination,
+                event_type=event_type,
+                access_keys=access_keys,
+            )
+
             messages.success(request, "Conferência criada com sucesso.")
             return redirect("logistics:conference_list")
 
@@ -60,7 +56,7 @@ class ConferenceCreateView(View):
 class ConferenceListView(ListView):
     model = Conference
     context_object_name = "conferences"
-    paginate_by = 10
+    paginate_by = 15
 
     def get_queryset(self): 
         return Conference.objects.filter(
@@ -68,6 +64,9 @@ class ConferenceListView(ListView):
         ).filter(
             (
                 Q(origin__entity=self.request.user.entity) & Q(mode="write")
+            ) |
+            (
+                Q(origin__entity=self.request.user.entity) & Q(mode="read")
             ) |
             (
                 Q(destination__entity=self.request.user.entity) & Q(mode="read")
