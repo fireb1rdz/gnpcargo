@@ -10,10 +10,7 @@ env.read_env(env_file='.env')
 
 def main():
     """Run administrative tasks."""
-    if env('ENVIRONMENT') == 'DEVELOPMENT':
-        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.dev')
-    else:
-        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.prod')
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', env('DJANGO_SETTINGS_MODULE'))
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

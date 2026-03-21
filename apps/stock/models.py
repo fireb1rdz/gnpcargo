@@ -1,5 +1,6 @@
 from django.db import models, connection
 from apps.core.models import TenantAwareModel
+from apps.entities.models import Party
 
 class PhysicalSpaceManager(models.Manager):
     def descendants_of(self, root_id, from_type=None):
@@ -42,16 +43,28 @@ class Codification(TenantAwareModel):
     codification = models.CharField(max_length=255)
     max_length = models.IntegerField()
 
+class TrackingSequence(TenantAwareModel):
+    current_value = models.BigIntegerField(default=0)
+
 class Package(TenantAwareModel):
     STATUS_CHOICES = (
+        ('generated', 'Generated'),
+        ('activated', 'Activated'),
+        ('stocked', 'Stocked'),
         ('pending', 'Pending'),
         ('shipped', 'Shipped'),
         ('delivered', 'Delivered'),
         ('cancelled', 'Cancelled'),
     )
-    tracking_code = models.CharField(max_length=255)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-
+    created_by = models.ForeignKey(Party, related_name="created_packages", on_delete=models.PROTECT)
+    holder = models.ForeignKey(Party, related_name="stored_packages", on_delete=models.PROTECT)
+    tracking_code = models.CharField(max_length=120, db_index=True)
+    product_description = models.CharField(max_length=500, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='generated')
+    tracking_code_origin = models.CharField(
+        choices=(('carrier', 'Carrier'), ('client', 'Client')),
+        default='client'
+    )
     length = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     width = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     height = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -62,17 +75,17 @@ class Package(TenantAwareModel):
         return self.length * self.width * self.height
 
 class PhysicalSpace(TenantAwareModel):
-    entity = models.IntegerField()
+    holder = models.ForeignKey(Party, on_delete=models.PROTECT)
     SPACE_TYPE_CHOICES = (
-        ("WAREHOUSE", "Warehouse"),
-        ("ZONE", "Zone"),
-        ("AISLE", "Aisle"),
-        ("RACK", "Rack"),
-        ("LEVEL", "Level"),
-        ("BIN", "Bin"),
-        ("FLOOR", "Floor Area"),
-        ("DOCK", "Dock"),
-        ("STAGING", "Staging"),
+        ("WAREHOUSE", "warehouse"),
+        ("ZONE", "zone"),
+        ("AISLE", "aisle"),
+        ("RACK", "rack"),
+        ("LEVEL", "level"),
+        ("BIN", "bin"),
+        ("FLOOR", "floor"),
+        ("DOCK", "dock"),
+        ("STAGING", "staging"),
     )
 
     parent = models.ForeignKey(

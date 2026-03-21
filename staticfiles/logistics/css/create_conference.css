@@ -1,0 +1,20 @@
+#access-key-container {
+    min-height: 42px;
+    cursor: text;
+}
+
+.access-key-chip {
+    background: #e9ecef;
+    border-radius: 4px;
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.access-key-chip button {
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-weight: bold;
+}

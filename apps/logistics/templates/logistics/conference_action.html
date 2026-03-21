@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}
+    Conferir
+{% endblock title %}
+{% block head %}
+    <link rel="stylesheet"
+          href="{% static 'logistics/css/conference_action.css' %}">
+{% endblock head %}
+{% block content %}
+    <audio id="OkSound" src="{% static 'logistics/mp3/ok.mp3' %}"></audio>
+    <audio id="ErrorSound" src="{% static 'logistics/mp3/error.mp3' %}"></audio>
+    <!-- Modal -->
+    <div class="modal fade"
+         id="finalizarModal"
+         tabindex="-1"
+         aria-labelledby="finalizarModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <form action="{% url 'logistics:finish_conference' conference.id %}"
+                  method="post">
+                {% csrf_token %}
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5" id="finalizarModalLabel">Finalizar Conferência</h1>
+                        <button type="button"
+                                class="btn-close"
+                                data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Tem certeza que deseja finalizar a conferência?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Finalizar</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="container mt-4">
+        <div class="card shadow">
+            <div class="card-body">
+                <h3 class="mb-3 text-center">
+                    Conferência de volumes -
+                    {% if conference.mode == "write" %}
+                        REGISTRO INICIAL
+                    {% else %}
+                        LEITURA
+                    {% endif %}
+                </h3>
+                <!-- HISTÓRICO DE LEITURA -->
+                <div class="mt-4">
+                    <h5>Histórico de Leitura</h5>
+                    <div id="readingHistory"
+                         class="border rounded p-2"
+                         style="height: 150px;
+                                overflow-y: auto;
+                                background: #f8f9fa;
+                                font-family: monospace;
+                                font-size: 18px">
+                        <!-- Histórico será inserido aqui -->
+                    </div>
+                </div>
+                <!-- INPUT DE BIPAGEM -->
+                <input id="barcodeInput"
+                       name="package_code"
+                       type="text"
+                       class="form-control form-control-lg mb-3 mt-3"
+                       placeholder="Bipe o código do volume...">
+                <!-- INFO DO DOCUMENTO -->
+                <div class="alert alert-secondary text-center">
+                    <input type="hidden" name="conference_id" value="{{ conference.id }}">
+                    Documento em conferência:
+                    <strong id="documentNumber">{{ conference.document_number }}</strong>
+                    <br>
+                    Origem:
+                    <strong id="documentType">{{ conference.origin.entity.name }}</strong>
+                    <br>
+                    Destino:
+                    <strong id="documentType">{{ conference.destination.entity.name }}</strong>
+                </div>
+                <!-- CONTADORES -->
+                <div class="row text-center mb-3">
+                    <div class="col">
+                        <h5>Quantidade Lida</h5>
+                        <span id="totalRead" class="badge bg-success fs-5">0</span>
+                    </div>
+                    <div class="col">
+                        <h5>Contador Auxiliar</h5>
+                        <span id="blueCounter" class="badge bg-primary fs-5">0</span>
+                        <button id="resetCounter" class="btn btn-sm btn-outline-primary ms-2">Resetar</button>
+                    </div>
+                </div>
+                <!-- TABELA DE VOLUMES -->
+                <table class="table table-striped" id="packagesTable">
+                    <thead>
+                        <tr>
+                            <th>Cód. Volume</th>
+                            <th class="text-end">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Preenchido dinamicamente -->
+                    </tbody>
+                </table>
+            </div>
+            <button class="btn btn-success btn-block"
+                    data-bs-toggle="modal"
+                    data-bs-target="#finalizarModal">Finalizar</button>
+        </div>
+    </div>
+    <script>
+    const ADD_ENDPOINT = "{% url 'logistics:conference_add_package' conference.id %}";
+    const REMOVE_ENDPOINT = "{% url 'logistics:conference_remove_package' conference.id %}";
+    const READ_ENDPOINT = "{% url 'logistics:conference_read_package' conference.id %}";
+    const CSRF_TOKEN = "{{ csrf_token }}";
+    const CONFERENCE_ID = "{{ conference.id }}";
+    const CONFERENCE_MODE = "{{ conference.mode }}";
+    </script>
+    <script src="{% static 'logistics/js/conference_action.js' %}"></script>
+{% endblock content %}
