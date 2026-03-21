@@ -1,0 +1,15 @@
+{% load static %}
+{% block head %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.min.js"></script>
+    <script type="module" src="{% static 'dashboards/js/logistics.js' %}"></script>
+{% endblock head %}
+{% block content %}
+    <div class="card" style="width: 500px; height: 350px;">
+        <div class="card-header">
+            <h3 class="card-title">Volumes por dia</h3>
+        </div>
+        <div class="card-body">
+            <canvas id="volumes-by-day"></canvas>
+        </div>
+    </div>
+{% endblock %}

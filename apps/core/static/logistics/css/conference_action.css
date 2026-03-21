@@ -1,0 +1,21 @@
+body {
+    background-color: #f5f5f5;
+}
+
+#barcodeInput {
+    font-size: 1.5rem;
+    text-align: center;
+}
+
+.table {
+    background: white;
+}
+
+.badge {
+    padding: 10px 15px;
+}
+
+#blueCounter {
+    min-width: 50px;
+    display: inline-block;
+}

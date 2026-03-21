@@ -12,15 +12,16 @@ class Entity(TenantAwareModel):
     slug = models.SlugField(max_length=100, unique=True, blank=True)
     cpf = models.CharField(max_length=11, unique=True, blank=True, null=True)
     cnpj = models.CharField(max_length=14, unique=True, blank=True, null=True)
-    cpforcnpj = models.CharField(max_length=4, choices=choices.items(), default='CPF')
+    cpforcnpj = models.CharField(max_length=4, choices=choices.items(), default='CNPJ')
+    economic_group = models.ForeignKey('self', on_delete=models.PROTECT, null=True, blank=True, related_name='economic_groups')
     is_active = models.BooleanField(default=True)
-    is_client = models.BooleanField(default=False)
-    is_shipping_company = models.BooleanField(default=False)
     is_branch = models.BooleanField(default=False)
-    is_main = models.BooleanField(default=False)
     is_system = models.BooleanField(default=False, help_text='Allow access to the entity as system company')
 
     def __str__(self):
+        return self.name
+
+    def __repr__(self):
         return self.name
 
     def save(self, *args, **kwargs):
@@ -39,8 +40,10 @@ class Entity(TenantAwareModel):
 class EntityAddress(TenantAwareModel):
     entity = models.ForeignKey(Entity, on_delete=models.CASCADE, related_name='entity_addresses')
     country = models.CharField(max_length=100)
-    state = models.CharField(max_length=100)
+    country_code = models.CharField(max_length=5)
+    state = models.CharField(max_length=5)
     city = models.CharField(max_length=100)
+    city_code = models.CharField(max_length=7)
     district = models.CharField(max_length=100)
     street = models.CharField(max_length=100)
     number = models.CharField(max_length=10, blank=True, null=True)
@@ -58,3 +61,36 @@ class EntityPhone(TenantAwareModel):
 
     def __str__(self):
         return f"{self.entity.name} - {self.phone}"
+
+class PartyRole(models.TextChoices):
+    CLIENT = "client", "Client"
+    CARRIER = "carrier", "Carrier"
+    SENDER  = "sender", "Sender"
+    RECEIVER = "receiver", "Receiver"
+    SUPPLIER = "supplier", "Supplier"
+
+class Party(TenantAwareModel):
+    """
+    Representa o papel de uma Entity em um contexto.
+    Ex.: Cliente, Fornecedor, Transportadora.
+    """
+    entity = models.ForeignKey(
+        'Entity',
+        on_delete=models.PROTECT,
+        related_name='parties'
+    )
+    role = models.CharField(
+        max_length=20,
+        choices=PartyRole.choices,
+        default=PartyRole.CLIENT.value
+    )
+    alias = models.CharField(max_length=100, blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ('entity', 'role')
+        verbose_name = 'Party'
+        verbose_name_plural = 'Parties'
+
+    def __str__(self):
+        return f"{self.entity.name} ({self.role})"

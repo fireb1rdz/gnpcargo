@@ -5,7 +5,10 @@ class LogisticsConfig(AppConfig):
     name = 'apps.logistics'
     verbose_name = 'Logistics'
     
-    def ready(self):
-        from apps.core.services.base import ModuleRegistry
-        from apps.logistics.services import LogisticsService
-        ModuleRegistry.register('logistics', LogisticsService())
+    def ready(self): 
+        from apps.logistics.module import LogisticsModule
+        from domain.registry.module_registry import ModuleRegistry
+        ModuleRegistry.register(
+            namespace="logistics",
+            service_instance=LogisticsModule,
+        )

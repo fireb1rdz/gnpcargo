@@ -32,6 +32,7 @@ SECRET_KEY = env('SECRET_KEY')
 
 SHARED_APPS = (
     'django_tenants',  
+    'widget_tweaks',
     'apps.core',
     'django.contrib.contenttypes',
     'django.contrib.staticfiles'
@@ -40,6 +41,10 @@ SHARED_APPS = (
 TENANT_APPS = (
     'apps.entities',
     'apps.users',
+    'apps.stock',
+    'apps.logistics',
+    'apps.fiscal',
+    'apps.dashboards',
     'django.contrib.auth',
     'django.contrib.sessions',
     'django.contrib.sites',
@@ -53,6 +58,7 @@ MIDDLEWARE = [
     'django_tenants.middleware.main.TenantMainMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django_session_timeout.middleware.SessionTimeoutMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -143,3 +149,68 @@ AUTH_USER_MODEL = 'users.User'
 
 # Site ID
 SITE_ID = 1
+
+# Media root
+DEFAULT_FILE_STORAGE = "django_tenants.files.storage.TenantFileSystemStorage"
+
+MULTITENANT_RELATIVE_MEDIA_ROOT = ""  # (default: create sub-directory for each tenant)
+
+LANGUAGE_CODE = 'pt-br'
+
+LOCALE_PATHS = [
+    os.path.join(BASE_DIR, "locale"),
+]
+
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+SESSION_EXPIRE_SECONDS = 60 * 60 * 5
+
+SESSION_EXPIRE_AFTER_LAST_ACTIVITY = True
+
+SESSION_TIMEOUT_REDIRECT = '/login/'
+
+# LOGGING
+
+LOG_DIR = os.path.join(BASE_DIR, "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "%(asctime)s [%(levelname)s] [%(name)s] %(message)s"
+        },
+        "structured": {
+            "format": "%(asctime)s | %(levelname)s | %(name)s | %(message)s | %(schema)s | %(reference_month)s | %(reference_year)s"
+        },
+    },
+    "handlers": {
+        "file": {
+            "level": "INFO",
+            "class": "logging.handlers.TimedRotatingFileHandler",
+            "filename": os.path.join(LOG_DIR, "finance.log"),
+            "when": "midnight",
+            "backupCount": 30,
+            "formatter": "verbose",
+        },
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+        "celery_file": {
+            "class": "logging.handlers.TimedRotatingFileHandler",
+            "filename": os.path.join(LOG_DIR, "celery.log"),
+            "when": "midnight",
+            "backupCount": 30,
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        "apps.finance": {
+            "handlers": ["file", "console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}

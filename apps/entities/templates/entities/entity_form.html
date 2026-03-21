@@ -1,4 +1,8 @@
 {% extends 'base.html' %}
+{% load static %}
+{% block head %}
+    <script src="{% static 'entities/js/entity_form.js' %}"></script>
+{% endblock head %}
 {% block content %}
     <div class="container mt-4" style="max-width: 1900px;">
         <h3 class="mb-4">
@@ -18,15 +22,19 @@
                 </div>
             </div>
             <div class="row mb-3">
-                <div class="col-md-4">
+                <div class="col-md-3">
+                    <label class="form-label">Grupo econômico</label>
+                    {{ form.economic_group }}
+                </div>
+                <div class="col-md-3">
                     <label class="form-label">Tipo</label>
                     {{ form.cpforcnpj }}
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">CPF</label>
                     {{ form.cpf }}
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">CNPJ</label>
                     {{ form.cnpj }}
                 </div>
@@ -39,19 +47,23 @@
                     <label class="form-check-label">Ativo</label>
                 </div>
                 <div class="col-md-4 form-check">
-                    {{ form.is_client }}
+                    {{ form.client }}
                     <label class="form-check-label">Cliente</label>
                 </div>
                 <div class="col-md-4 form-check">
-                    {{ form.is_shipping_company }}
+                    {{ form.carrier }}
                     <label class="form-check-label">Transportadora</label>
+                </div>
+                <div class="col-md-4 form-check">
+                    {{ form.sender }}
+                    <label class="form-check-label">Pode ser origem</label>
+                </div>
+                <div class="col-md-4 form-check">
+                    {{ form.receiver }}
+                    <label class="form-check-label">Pode ser destino</label>
                 </div>
             </div>
             <div class="row mb-4">
-                <div class="col-md-4 form-check">
-                    {{ form.is_main }}
-                    <label class="form-check-label">Matriz</label>
-                </div>
                 <div class="col-md-4 form-check">
                     {{ form.is_branch }}
                     <label class="form-check-label">Filial</label>

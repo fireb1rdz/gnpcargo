@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block title %}
+    Conferências
+{% endblock title %}
+{% block head %}
+{% endblock head %}
+{% block content %}
+    <div class="position-relative">
+        <h1 class="mb-4">Conferências</h1>
+        <a href="{% url 'logistics:conference_create' %}"
+           class="btn btn-primary position-absolute top-0 end-0">Criar Conferência</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th data-bs-toggle="tooltip" data-bs-title="Origem" class="col-1">Origem</th>
+                    <th data-bs-toggle="tooltip" data-bs-title="Destino" class="col-1">Destino</th>
+                    <th data-bs-toggle="tooltip" data-bs-title="Tipo" class="col-1">Tipo</th>
+                    <th data-bs-toggle="tooltip" data-bs-title="N. Documento" class="col-1">N. Documento</th>
+                    <th data-bs-toggle="tooltip" data-bs-title="Tipo Documento" class="col-1">Tipo Documento</th>
+                    <th data-bs-toggle="tooltip" data-bs-title="Início" class="col-1">Início</th>
+                    <th data-bs-toggle="tooltip" data-bs-title="Fim" class="col-1">Fim</th>
+                    <th data-bs-toggle="tooltip" data-bs-title="Criado por" class="col-1">Criado por</th>
+                    <th data-bs-toggle="tooltip" data-bs-title="Status" class="col-1">Status</th>
+                    <th data-bs-toggle="tooltip" data-bs-title="Ações" class="col-1">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for conference in conferences %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'entities:entity_update' conference.origin.entity.id %}">
+                                {{ conference.origin.entity.id }} - {{ conference.origin.entity.name }}
+                            </a>
+                        </td>
+                        <td>
+                            <a href="{% url 'entities:entity_update' conference.destination.entity.id %}">
+                                {{ conference.destination.entity.id }} - {{ conference.destination.entity.name }}
+                            </a>
+                        </td>
+                        <td>{{ conference.get_event_type_display }}</td>
+                        <td>{{ conference.document_number }}</td>
+                        <td>{{ conference.get_document_type_display }}</td>
+                        <td>
+                            {% if conference.start_date %}
+                                {{ conference.start_date|date:"d/m/Y" }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if conference.end_date %}
+                                {{ conference.end_date|date:"d/m/Y" }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>{{ conference.created_by.username }}</td>
+                        <td>{{ conference.get_status_display }}</td>
+                        <td>
+                            {% comment %} <a href="{% url 'logistics:conference_detail' conference.id %}" class="btn btn-primary">Detalhes</a> {% endcomment %}
+                            {% comment %} <a href="{% url 'logistics:conference_update' conference.id %}"
+    class="btn btn-warning">Editar</a> {% endcomment %}
+                            {% comment %} <a href="{% url 'logistics:conference_delete' conference.id %}" class="btn btn-danger">Excluir</a> {% endcomment %}
+                            {% if conference.status == 'pending' or conference.status == 'in_progress' %}
+                                <a href="{% url 'logistics:conference_action' conference.id %}"
+                                   class="btn btn-success">Conferir</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock content %}

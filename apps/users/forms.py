@@ -2,8 +2,13 @@ from django.forms import ModelForm
 from django.contrib.auth.forms import AuthenticationForm
 from django import forms
 from .models import User
+from apps.entities.models import Entity
 
 class CustomAuthenticationForm(AuthenticationForm):
+    entity = forms.ModelChoiceField(
+        queryset=Entity.objects.filter(is_system=True),
+        widget=forms.Select(attrs={"class": "form-select select2"}),
+    )
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -14,6 +19,10 @@ class CustomAuthenticationForm(AuthenticationForm):
         self.fields["password"].widget.attrs.update({
             "class": "form-control",
             "placeholder": "Senha"
+        })
+        self.fields["entity"].widget.attrs.update({
+            "class": "form-select select2",
+            "placeholder": "Empresa"
         })
 
 
