@@ -214,3 +214,9 @@ LOGGING = {
         },
     },
 }
+
+# Diz ao Django que o Traefik está cuidando do SSL
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Se estiver usando Django 4.0 ou superior, você PRECISA disso para não dar erro de CSRF
+CSRF_TRUSTED_ORIGINS = ['https://demo.gnpsistemas.com.br']
