@@ -5,12 +5,16 @@ from django.contrib import messages
 from django.db import transaction
 from django.db.models import Q
 from django.views.generic import ListView
-from .models import Conference
+from .models import Conference, ConferenceItem
 # from domain.schemas.conference_table import ConferenceTableSchema
 from domain.bootstrap.service_container import get_conference_application_service, get_package_service
 from .forms import ConferenceCreateForm
 from django.http import JsonResponse
 from django.utils import timezone
+from django.db.models import Count
+from django.db.models.functions import TruncDay
+from datetime import datetime
+from datetime import timedelta
 import json
 from apps.logistics.exceptions import PackageNotFoundError, PackageAlreadyReadError
 
@@ -169,3 +173,50 @@ class ConferenceReadPackageView(View):
             return JsonResponse({"status": "not_found", "message": str(e)}, status=400)
         except PackageAlreadyReadError as e:
             return JsonResponse({"status": "already_read", "message": str(e)}, status=400)
+
+
+class AmountPackagesByDayView(View):
+
+    def get(self, request):
+        tenant = request.tenant
+
+        try:
+            days = int(request.GET.get("days", 30))
+        except ValueError:
+            return JsonResponse({"error": "Invalid days parameter"}, status=400)
+
+        if days <= 0 or days > 365:
+            return JsonResponse({"error": "Days must be between 1 and 365"}, status=400)
+
+        today = timezone.now()
+        start_date = today - timedelta(days=days)
+
+        qs = (
+            ConferenceItem.objects
+            .filter(
+                tenant=tenant,
+                read_at__gte=start_date,
+                read_at__lte=today,
+                status="ok"
+            )
+            .annotate(day=TruncDay("read_at"))
+            .values("day")
+            .annotate(total=Count("id"))
+            .order_by("day")
+        )
+
+        data_dict = {item["day"].date(): item["total"] for item in qs}
+
+        labels = []
+        data = []
+
+        for i in range(days):
+            day = (start_date + timedelta(days=i)).date()
+            labels.append(day.strftime("%d/%m"))
+            data.append(data_dict.get(day, 0))
+
+        return JsonResponse({
+            "labels": labels,
+            "data": data,
+            "days": days
+        })

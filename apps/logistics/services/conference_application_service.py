@@ -189,3 +189,6 @@ class ConferenceApplicationService:
 
     def get_packages_read_in_month(self, tenant, month, year):
         return ConferenceItem.objects.filter(tenant=tenant, read_at__month=month, read_at__year=year, status="ok").count()
+
+    def get_amount_packages_by_day(self, tenant, month, year):
+        return ConferenceItem.objects.filter(tenant=tenant, read_at__month=month, read_at__year=year, status="ok").count()
