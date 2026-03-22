@@ -29,15 +29,15 @@ services:
     volumes:
       - static_volume:/app/staticfiles
 
-nginx-static:
-  image: nginx:alpine
-  volumes:
-    - static_volume:/var/www/static:ro
-    - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
-  labels:
-    - "traefik.enable=true"
-    - "traefik.http.routers.static.rule=Host(`cargo.gnpsistemas.com.br`) && PathPrefix(`/static/`)"
-    - "traefik.http.services.static.loadbalancer.server.port=80"
+  nginx-static:
+    image: nginx:alpine
+    volumes:
+      - static_volume:/var/www/static:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.static.rule=Host(`cargo.gnpsistemas.com.br`) && PathPrefix(`/static/`)"
+      - "traefik.http.services.static.loadbalancer.server.port=80"
 
 networks:
   traefik-public:
