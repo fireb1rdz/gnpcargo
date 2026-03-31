@@ -15,6 +15,10 @@ RUN pip install --upgrade pip \
 
 COPY . .
 
+RUN apt-get update && apt-get install -y gettext
+
 RUN chmod +x /app/docker/entrypoint.sh
+
+RUN django-admin compilemessages
 
 ENTRYPOINT ["/app/docker/entrypoint.sh"]

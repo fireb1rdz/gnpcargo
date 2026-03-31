@@ -1,82 +1,130 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block head %}
-    <script src="{% static 'entities/js/entity_form.js' %}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
+    <script src="{% static 'entities/js/entity_form.js' %}" defer></script>
 {% endblock head %}
 {% block content %}
-    <div class="container mt-4" style="max-width: 1900px;">
-        <h3 class="mb-4">
-            {% if object %}
-                Editar Entidade
-            {% else %}
-                Criar Entidade
-            {% endif %}
-        </h3>
-        <form method="post">
-            {% csrf_token %}
-            <!-- Dados principais -->
-            <div class="row mb-3">
-                <div class="col-md-12">
-                    <label class="form-label">Nome</label>
-                    {{ form.name }}
+    <div class="container py-4" style="max-width: 1100px;">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <div class="mb-4">
+                    <h3 class="mb-1">
+                        {% if object %}
+                            Editar entidade
+                        {% else %}
+                            Criar entidade
+                        {% endif %}
+                    </h3>
+                    <p class="text-muted mb-0">Preencha os dados abaixo para cadastrar a entidade no sistema.</p>
                 </div>
+                <form method="post">
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+                    <div class="card border-0 bg-light mb-4">
+                        <div class="card-body">
+                            <h5 class="mb-3">Dados principais</h5>
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label for="{{ form.name.id_for_label }}" class="form-label fw-semibold">Nome</label>
+                                    {{ form.name }}
+                                    {% if form.name.errors %}<div class="text-danger small mt-1">{{ form.name.errors }}</div>{% endif %}
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="{{ form.economic_group.id_for_label }}"
+                                           class="form-label fw-semibold">Grupo econômico</label>
+                                    {{ form.economic_group }}
+                                    {% if form.economic_group.errors %}
+                                        <div class="text-danger small mt-1">{{ form.economic_group.errors }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="{{ form.cpforcnpj.id_for_label }}"
+                                           class="form-label fw-semibold">Tipo de pessoa</label>
+                                    {{ form.cpforcnpj }}
+                                    <div class="form-text">Selecione PF para CPF ou PJ para CNPJ.</div>
+                                    {% if form.cpforcnpj.errors %}<div class="text-danger small mt-1">{{ form.cpforcnpj.errors }}</div>{% endif %}
+                                </div>
+                                <div class="col-md-4">
+                                    <div id="cpf-field-wrapper">
+                                        <label for="{{ form.cpf.id_for_label }}" class="form-label fw-semibold">CPF</label>
+                                        {{ form.cpf }}
+                                        <div class="form-text">Formato: 000.000.000-00</div>
+                                        {% if form.cpf.errors %}<div class="text-danger small mt-1">{{ form.cpf.errors }}</div>{% endif %}
+                                    </div>
+                                    <div id="cnpj-field-wrapper">
+                                        <label for="{{ form.cnpj.id_for_label }}" class="form-label fw-semibold">CNPJ</label>
+                                        {{ form.cnpj }}
+                                        <div class="form-text">Formato: 00.000.000/0000-00</div>
+                                        {% if form.cnpj.errors %}<div class="text-danger small mt-1">{{ form.cnpj.errors }}</div>{% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card border-0 bg-light mb-4">
+                        <div class="card-body">
+                            <h5 class="mb-3">Configurações</h5>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <div class="form-check form-switch">
+                                        {{ form.is_active }}
+                                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Ativo</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check form-switch">
+                                        {{ form.client }}
+                                        <label class="form-check-label" for="{{ form.client.id_for_label }}">Cliente</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check form-switch">
+                                        {{ form.carrier }}
+                                        <label class="form-check-label" for="{{ form.carrier.id_for_label }}">Transportadora</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check form-switch">
+                                        {{ form.sender }}
+                                        <label class="form-check-label" for="{{ form.sender.id_for_label }}">Pode ser origem</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check form-switch">
+                                        {{ form.receiver }}
+                                        <label class="form-check-label" for="{{ form.receiver.id_for_label }}">Pode ser destino</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check form-switch">
+                                        {{ form.is_branch }}
+                                        <label class="form-check-label" for="{{ form.is_branch.id_for_label }}">Filial</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check form-switch">
+                                        {{ form.is_system }}
+                                        <label class="form-check-label" for="{{ form.is_system.id_for_label }}">Sistema</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="submit" class="btn btn-primary px-4">
+                            {% if object %}
+                                Salvar alterações
+                            {% else %}
+                                Cadastrar entidade
+                            {% endif %}
+                        </button>
+                        {% comment %}
+                    <a href="{% url 'entity-list' %}" class="btn btn-outline-secondary">Cancelar</a>
+                        {% endcomment %}
+                    </div>
+                </form>
             </div>
-            <div class="row mb-3">
-                <div class="col-md-3">
-                    <label class="form-label">Grupo econômico</label>
-                    {{ form.economic_group }}
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Tipo</label>
-                    {{ form.cpforcnpj }}
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">CPF</label>
-                    {{ form.cpf }}
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">CNPJ</label>
-                    {{ form.cnpj }}
-                </div>
-            </div>
-            <hr>
-            <!-- Flags -->
-            <div class="row mb-3">
-                <div class="col-md-4 form-check">
-                    {{ form.is_active }}
-                    <label class="form-check-label">Ativo</label>
-                </div>
-                <div class="col-md-4 form-check">
-                    {{ form.client }}
-                    <label class="form-check-label">Cliente</label>
-                </div>
-                <div class="col-md-4 form-check">
-                    {{ form.carrier }}
-                    <label class="form-check-label">Transportadora</label>
-                </div>
-                <div class="col-md-4 form-check">
-                    {{ form.sender }}
-                    <label class="form-check-label">Pode ser origem</label>
-                </div>
-                <div class="col-md-4 form-check">
-                    {{ form.receiver }}
-                    <label class="form-check-label">Pode ser destino</label>
-                </div>
-            </div>
-            <div class="row mb-4">
-                <div class="col-md-4 form-check">
-                    {{ form.is_branch }}
-                    <label class="form-check-label">Filial</label>
-                </div>
-                <div class="col-md-4 form-check">
-                    {{ form.is_system }}
-                    <label class="form-check-label">Sistema</label>
-                </div>
-            </div>
-            <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-primary">Salvar</button>
-                {% comment %} <a href="{% url 'entity-list' %}" class="btn btn-secondary">Cancelar</a> {% endcomment %}
-            </div>
-        </form>
+        </div>
     </div>
 {% endblock content %}

@@ -1,7 +1,71 @@
 {% extends 'base.html' %}
+{% load i18n static %}
 {% block title %}
-    Dashboards
+    Dashboards Logística
 {% endblock title %}
+{% block head %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script type="module" src="{% static 'dashboards/js/logistics.js' %}"></script>
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+            gap: 16px;
+        }
+        .dashboard-card {
+            min-height: 360px;
+        }
+        .table-responsive {
+            max-height: 320px;
+            overflow: auto;
+        }
+        .metric-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .metric-table th, .metric-table td {
+            border-bottom: 1px solid #eee;
+            padding: 8px;
+            font-size: 13px;
+            text-align: left;
+        }
+        .metric-table th {
+            position: sticky;
+            top: 0;
+            background: #fff;
+            z-index: 1;
+        }
+        .badge-ok {
+            color: #0a7d2c;
+            font-weight: 600;
+        }
+        .badge-bad {
+            color: #b42318;
+            font-weight: 600;
+        }
+    </style>
+{% endblock head %}
 {% block content %}
-    {% include 'dashboards/partials/_volumes_by_day.html' %}
+    <div class="dashboard-grid">
+        {% include 'dashboards/partials/_volumes_by_day.html' %}
+        {% include 'dashboards/partials/_conferences_in_progress.html' %}
+        {% include 'dashboards/partials/_average_conference_time.html' %}
+        {% include 'dashboards/partials/_conferences_with_problem.html' %}
+        {% include 'dashboards/partials/_pending_items_by_conference.html' %}
+        {% include 'dashboards/partials/_faulty_items_grouped.html' %}
+        {% include 'dashboards/partials/_error_rate_rankings.html' %}
+        {% include 'dashboards/partials/_operator_performance.html' %}
+        {% include 'dashboards/partials/_volume_by_operation_type.html' %}
+        {% include 'dashboards/partials/_conferences_by_period.html' %}
+        {% include 'dashboards/partials/_derived_conferences.html' %}
+        {% include 'dashboards/partials/_problematic_suppliers.html' %}
+        {% include 'dashboards/partials/_products_with_divergence.html' %}
+        {% include 'dashboards/partials/_idle_time_conferences.html' %}
+        {% include 'dashboards/partials/_full_flow_load_unload.html' %}
+        {% include 'dashboards/partials/_cancelled_conferences.html' %}
+        {% include 'dashboards/partials/_conference_sla.html' %}
+        {% include 'dashboards/partials/_full_audit.html' %}
+        {% include 'dashboards/partials/_errors_heatmap.html' %}
+    </div>
 {% endblock %}
