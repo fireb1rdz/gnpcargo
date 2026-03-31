@@ -1,4 +1,11 @@
 {% extends "base.html" %}
+{% block title %}
+    {% if object %}
+        Editar Usuário
+    {% else %}
+        Criar Usuário
+    {% endif %}
+{% endblock title %}
 {% block content %}
     <div class="container mt-4" style="max-width: 1900px;">
         <h3 class="mb-4">

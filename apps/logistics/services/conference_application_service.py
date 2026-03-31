@@ -139,6 +139,11 @@ class ConferenceApplicationService:
         ).exists()
         if self.party_service.party_is_system(conference.destination) and not already_created:
             self.create_conference_in_destination(tenant, conference_id, user)
+        for item in conference.items.all():
+            if item.status == "pending":
+                conference.has_problem = True
+                item.status = "faulty"
+                item.save()
         conference.status = "finished"
         conference.finished_by = user
         conference.end_date = now()

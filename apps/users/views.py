@@ -1,6 +1,7 @@
 from django.views.generic import CreateView, ListView, UpdateView, DeleteView, TemplateView
 from django.contrib import messages
 from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from .forms import CustomAuthenticationForm
 from apps.users.models import User
@@ -57,5 +58,5 @@ class UserDeleteView(DeleteView):
     model = User
     success_url = "/usuarios/listar/"
 
-class HomeView(TemplateView):
+class HomeView(LoginRequiredMixin, TemplateView):
     template_name = "auth/home.html"

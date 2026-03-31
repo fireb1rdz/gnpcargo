@@ -1,23 +1,31 @@
-from apps.entities.models import Party
-from django.views import View
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.db import transaction
-from django.db.models import Q
-from django.views.generic import ListView
-from django.utils.translation import gettext_lazy as _
-from .models import Conference, ConferenceItem
-# from domain.schemas.conference_table import ConferenceTableSchema
-from domain.bootstrap.service_container import get_conference_application_service, get_package_service
-from .forms import ConferenceCreateForm
-from django.http import JsonResponse
-from django.utils import timezone
-from django.db.models import Count
-from django.db.models.functions import TruncDay
-from datetime import datetime
-from datetime import timedelta
 import json
-from apps.logistics.exceptions import PackageNotFoundError, PackageAlreadyReadError
+from datetime import datetime, timedelta
+
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.db import transaction
+from django.db.models import (Avg, Count, DurationField, ExpressionWrapper, F,
+                              Max, Min, Q)
+from django.db.models.functions import (TruncDate, TruncDay, TruncMonth,
+                                        TruncWeek)
+from django.http import JsonResponse
+from django.shortcuts import redirect, render
+from django.utils import timezone
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _
+from django.views import View
+from django.views.generic import ListView
+
+from apps.entities.models import Party
+from apps.logistics.exceptions import (PackageAlreadyReadError,
+                                       PackageNotFoundError)
+# from domain.schemas.conference_table import ConferenceTableSchema
+from domain.bootstrap.service_container import (
+    get_conference_application_service)
+
+from .forms import ConferenceCreateForm
+from .models import Conference, ConferenceItem
+
 
 class ConferenceCreateView(View):
     template_name = "logistics/conference_create.html"
@@ -85,10 +93,13 @@ class ConferenceActionView(View):
     template_name = "logistics/conference_action.html"
 
     def get(self, request, conference_id):
+        conference_application_service = get_conference_application_service()
         conference = Conference.objects.get(id=conference_id)
-        conference.start_date = timezone.now()
-        conference.started_by = request.user
-        conference.save()
+        conference_application_service.start_conference(
+            tenant=request.tenant,
+            conference_id=conference_id,
+            user=request.user,
+        )
         
         return render(request, self.template_name, {"conference": conference})
 
@@ -221,3 +232,714 @@ class AmountPackagesByDayView(View):
             "data": data,
             "days": days
         })
+
+
+@login_required
+def dashboards(request):
+    return render(request, "dashboards/index.html")
+
+
+def _days_param(request, default=30):
+    try:
+        return int(request.GET.get("days", default))
+    except (TypeError, ValueError):
+        return default
+
+
+def _date_range(days):
+    end_date = timezone.now()
+    start_date = end_date - timedelta(days=days - 1)
+    return start_date, end_date
+
+
+def _seconds_from_duration(avg_duration):
+    if not avg_duration:
+        return 0
+    return round(avg_duration.total_seconds(), 2)
+
+
+def _party_label(party):
+    return str(party) if party else "-"
+
+
+def _user_label(user):
+    return str(user) if user else "-"
+
+
+def _conference_problem_type(conference):
+    if conference.faulty_items > 0:
+        return _("Faulty items")
+    if conference.pending_items > 0:
+        return _("Pending items")
+    return _("Divergence without flagged item")
+
+
+def _event_type_label(value):
+    return dict(Conference.EVENT_TYPE_CHOICES).get(value, value)
+
+
+def _conference_status_label(value):
+    return dict(Conference.STATUS_CHOICES).get(value, value)
+
+
+def _conference_item_status_label(value):
+    return dict(ConferenceItem.STATUS_CHOICES).get(value, value)
+
+
+@login_required
+def conferences_in_progress(request):
+    qs = (
+        Conference.objects
+        .filter(status="in_progress")
+        .annotate(
+            total_items=Count("items", distinct=True),
+            read_items=Count("items", filter=Q(items__read_at__isnull=False), distinct=True),
+        )
+        .select_related("origin", "destination", "started_by")
+        .order_by("start_date")
+    )
+
+    now = timezone.now()
+    data = []
+
+    for conference in qs:
+        elapsed = None
+        if conference.start_date:
+            elapsed = now - conference.start_date
+
+        data.append({
+            "id": conference.id,
+            "origin": _party_label(conference.origin),
+            "destination": _party_label(conference.destination),
+            "started_by": _user_label(conference.started_by),
+            "start_date": conference.start_date.strftime("%d/%m/%Y %H:%M") if conference.start_date else "-",
+            "elapsed_seconds": int(elapsed.total_seconds()) if elapsed else 0,
+            "read_items": conference.read_items,
+            "total_items": conference.total_items,
+            "event_type": conference.get_event_type_display(),
+            "status": conference.get_status_display(),
+            "document_type": conference.get_document_type_display(),
+            "mode": conference.get_mode_display(),
+        })
+
+    return JsonResponse({"results": data})
+
+
+@login_required
+def average_conference_time(request):
+    qs = (
+        Conference.objects
+        .filter(
+            start_date__isnull=False,
+            end_date__isnull=False,
+            status="finished",
+        )
+        .annotate(
+            duration=ExpressionWrapper(
+                F("end_date") - F("start_date"),
+                output_field=DurationField(),
+            )
+        )
+    )
+
+    by_user = []
+    user_qs = (
+        qs.values("started_by__id", "started_by__username")
+        .annotate(avg_duration=Avg("duration"), total=Count("id"))
+        .order_by("avg_duration")
+    )
+    for row in user_qs:
+        by_user.append({
+            "label": row["started_by__username"] or _("No user"),
+            "avg_seconds": _seconds_from_duration(row["avg_duration"]),
+            "total": row["total"],
+        })
+
+    by_event_type = []
+    type_qs = (
+        qs.values("event_type")
+        .annotate(avg_duration=Avg("duration"), total=Count("id"))
+        .order_by("avg_duration")
+    )
+    for row in type_qs:
+        by_event_type.append({
+            "label": _event_type_label(row["event_type"]),
+            "avg_seconds": _seconds_from_duration(row["avg_duration"]),
+            "total": row["total"],
+        })
+
+    by_route = []
+    route_qs = (
+        qs.values("origin__entity__name", "destination__entity__name")
+        .annotate(avg_duration=Avg("duration"), total=Count("id"))
+        .order_by("avg_duration")[:20]
+    )
+    for row in route_qs:
+        by_route.append({
+            "label": f'{row["origin__entity__name"]} → {row["destination__entity__name"]}',
+            "avg_seconds": _seconds_from_duration(row["avg_duration"]),
+            "total": row["total"],
+        })
+
+    return JsonResponse({
+        "by_user": by_user,
+        "by_event_type": by_event_type,
+        "by_route": by_route,
+    })
+
+
+@login_required
+def conferences_with_problem(request):
+    qs = (
+        Conference.objects
+        .filter(has_problem=True)
+        .annotate(
+            total_items=Count("items", distinct=True),
+            faulty_items=Count("items", filter=Q(items__status="faulty"), distinct=True),
+            pending_items=Count("items", filter=Q(items__status="pending"), distinct=True),
+            ok_items=Count("items", filter=Q(items__status="ok"), distinct=True),
+        )
+        .select_related("origin", "destination")
+        .order_by("-created_at")
+    )
+
+    results = []
+    for c in qs:
+        total = c.total_items or 0
+        error_rate = round((c.faulty_items / total) * 100, 2) if total else 0
+
+        results.append({
+            "id": c.id,
+            "origin": _party_label(c.origin),
+            "destination": _party_label(c.destination),
+            "status": c.get_status_display(),
+            "event_type": c.get_event_type_display(),
+            "document_type": c.get_document_type_display(),
+            "mode": c.get_mode_display(),
+            "problem_type": _conference_problem_type(c),
+            "faulty_items": c.faulty_items,
+            "pending_items": c.pending_items,
+            "ok_items": c.ok_items,
+            "total_items": total,
+            "error_rate": error_rate,
+        })
+
+    return JsonResponse({"results": results})
+
+
+@login_required
+def pending_items_by_conference(request):
+    qs = (
+        Conference.objects
+        .annotate(
+            total_items=Count("items", distinct=True),
+            pending_items=Count("items", filter=Q(items__status="pending"), distinct=True),
+            last_read_at=Max("items__read_at"),
+        )
+        .filter(pending_items__gt=0)
+        .select_related("origin", "destination", "started_by")
+        .order_by("-pending_items", "start_date")
+    )
+
+    results = []
+    for c in qs:
+        results.append({
+            "id": c.id,
+            "origin": _party_label(c.origin),
+            "destination": _party_label(c.destination),
+            "status": c.get_status_display(),
+            "event_type": c.get_event_type_display(),
+            "started_by": _user_label(c.started_by),
+            "pending_items": c.pending_items,
+            "total_items": c.total_items,
+            "last_read_at": c.last_read_at.strftime("%d/%m/%Y %H:%M") if c.last_read_at else "-",
+        })
+
+    return JsonResponse({"results": results})
+
+
+@login_required
+def faulty_items_grouped(request):
+    by_package = (
+        ConferenceItem.objects
+        .filter(status="faulty")
+        .values("package__id")
+        .annotate(
+            total=Count("id"),
+            label=Min("package__id"),
+        )
+        .order_by("-total")[:20]
+    )
+
+    by_origin = (
+        ConferenceItem.objects
+        .filter(status="faulty")
+        .values("conference__origin__entity__name")
+        .annotate(total=Count("id"))
+        .order_by("-total")[:20]
+    )
+
+    by_destination = (
+        ConferenceItem.objects
+        .filter(status="faulty")
+        .values("conference__destination__entity__name")
+        .annotate(total=Count("id"))
+        .order_by("-total")[:20]
+    )
+
+    return JsonResponse({
+        "by_package": [
+            {"label": _("Package #%(id)s") % {"id": row["package__id"]}, "total": row["total"]}
+            for row in by_package
+        ],
+        "by_origin": [
+            {"label": row["conference__origin__entity__name"], "total": row["total"]}
+            for row in by_origin
+        ],
+        "by_destination": [
+            {"label": row["conference__destination__entity__name"], "total": row["total"]}
+            for row in by_destination
+        ],
+    })
+
+
+@login_required
+def error_rate_rankings(request):
+    base = (
+        Conference.objects
+        .annotate(
+            total_items=Count("items", distinct=True),
+            faulty_items=Count("items", filter=Q(items__status="faulty"), distinct=True),
+        )
+        .filter(total_items__gt=0)
+    )
+
+    by_user = []
+    user_qs = (
+        base.values("started_by__username")
+        .annotate(
+            conferences=Count("id"),
+            total_faulty=Count("items", filter=Q(items__status="faulty")),
+            total_all=Count("items"),
+        )
+        .order_by("-total_faulty")
+    )
+    for row in user_qs:
+        total_all = row["total_all"] or 0
+        rate = round((row["total_faulty"] / total_all) * 100, 2) if total_all else 0
+        by_user.append({
+            "label": row["started_by__username"] or _("No user"),
+            "conferences": row["conferences"],
+            "error_rate": rate,
+        })
+
+    by_origin = []
+    origin_qs = (
+        base.values("origin__entity__name")
+        .annotate(
+            conferences=Count("id"),
+            total_faulty=Count("items", filter=Q(items__status="faulty")),
+            total_all=Count("items"),
+        )
+        .order_by("-total_faulty")
+    )
+    for row in origin_qs:
+        total_all = row["total_all"] or 0
+        rate = round((row["total_faulty"] / total_all) * 100, 2) if total_all else 0
+        by_origin.append({
+            "label": row["origin__entity__name"],
+            "conferences": row["conferences"],
+            "error_rate": rate,
+        })
+
+    by_destination = []
+    destination_qs = (
+        base.values("destination__entity__name")
+        .annotate(
+            conferences=Count("id"),
+            total_faulty=Count("items", filter=Q(items__status="faulty")),
+            total_all=Count("items"),
+        )
+        .order_by("-total_faulty")
+    )
+    for row in destination_qs:
+        total_all = row["total_all"] or 0
+        rate = round((row["total_faulty"] / total_all) * 100, 2) if total_all else 0
+        by_destination.append({
+            "label": row["destination__entity__name"],
+            "conferences": row["conferences"],
+            "error_rate": rate,
+        })
+
+    return JsonResponse({
+        "by_user": by_user[:20],
+        "by_origin": by_origin[:20],
+        "by_destination": by_destination[:20],
+    })
+
+
+@login_required
+def operator_performance(request):
+    qs = (
+        Conference.objects
+        .filter(status="finished", start_date__isnull=False, end_date__isnull=False)
+        .annotate(
+            duration=ExpressionWrapper(F("end_date") - F("start_date"), output_field=DurationField())
+        )
+        .values("started_by__username")
+        .annotate(
+            conferences=Count("id"),
+            avg_duration=Avg("duration"),
+            total_faulty=Count("items", filter=Q(items__status="faulty")),
+            total_items=Count("items"),
+        )
+        .order_by("-conferences")
+    )
+
+    results = []
+    for row in qs:
+        total_items = row["total_items"] or 0
+        error_rate = round((row["total_faulty"] / total_items) * 100, 2) if total_items else 0
+        results.append({
+            "operator": row["started_by__username"] or _("No user"),
+            "conferences": row["conferences"],
+            "avg_seconds": _seconds_from_duration(row["avg_duration"]),
+            "error_rate": error_rate,
+        })
+
+    return JsonResponse({"results": results})
+
+
+@login_required
+def volume_by_operation_type(request):
+    days = _days_param(request, 30)
+    start_date, end_date = _date_range(days)
+
+    qs = (
+        Conference.objects
+        .filter(created_at__date__gte=start_date.date(), created_at__date__lte=end_date.date())
+        .values("event_type")
+        .annotate(total=Count("id"))
+        .order_by("event_type")
+    )
+
+    labels = []
+    data = []
+    raw_labels = []
+
+    for row in qs:
+        raw_labels.append(row["event_type"])
+        labels.append(_event_type_label(row["event_type"]))
+        data.append(row["total"])
+
+    return JsonResponse({
+        "labels": labels,
+        "raw_labels": raw_labels,
+        "data": data,
+        "days": days,
+    })
+
+
+@login_required
+def conferences_by_period(request):
+    days = _days_param(request, 90)
+    period = request.GET.get("period", "day")
+
+    start_date, end_date = _date_range(days)
+    qs = Conference.objects.filter(created_at__gte=start_date, created_at__lte=end_date)
+
+    if period == "week":
+        trunc = TruncWeek("created_at")
+        period_label = _("Week")
+    elif period == "month":
+        trunc = TruncMonth("created_at")
+        period_label = _("Month")
+    else:
+        trunc = TruncDate("created_at")
+        period_label = _("Day")
+
+    grouped = (
+        qs.annotate(period_ref=trunc)
+        .values("period_ref")
+        .annotate(total=Count("id"))
+        .order_by("period_ref")
+    )
+
+    labels = []
+    data = []
+
+    for row in grouped:
+        ref = row["period_ref"]
+        if period == "month":
+            label = ref.strftime("%m/%Y")
+        elif period == "week":
+            label = _("Week %(date)s") % {"date": ref.strftime("%d/%m")}
+        else:
+            label = ref.strftime("%d/%m")
+        labels.append(label)
+        data.append(row["total"])
+
+    return JsonResponse({
+        "labels": labels,
+        "data": data,
+        "period": period,
+        "period_label": period_label,
+        "days": days,
+    })
+
+
+@login_required
+def derived_conferences(request):
+    qs = (
+        Conference.objects
+        .filter(parent_conference__isnull=False)
+        .select_related("parent_conference", "origin", "destination")
+        .annotate(total_items=Count("items", distinct=True))
+        .order_by("-created_at")[:50]
+    )
+
+    results = []
+    for c in qs:
+        results.append({
+            "id": c.id,
+            "parent_id": c.parent_conference_id,
+            "origin": _party_label(c.origin),
+            "destination": _party_label(c.destination),
+            "event_type": c.get_event_type_display(),
+            "status": c.get_status_display(),
+            "total_items": c.total_items,
+            "created_at": c.created_at.strftime("%d/%m/%Y %H:%M"),
+        })
+
+    return JsonResponse({"results": results})
+
+
+@login_required
+def problematic_suppliers(request):
+    qs = (
+        Conference.objects
+        .annotate(
+            total_items=Count("items", distinct=True),
+            faulty_items=Count("items", filter=Q(items__status="faulty"), distinct=True),
+        )
+        .filter(total_items__gt=0)
+        .values("origin__entity__name")
+        .annotate(
+            total_faulty=Count("items", filter=Q(items__status="faulty")),
+            total_all=Count("items"),
+            conferences=Count("id"),
+        )
+        .order_by("-total_faulty")
+    )
+
+    results = []
+    for row in qs:
+        total_all = row["total_all"] or 0
+        faulty_rate = round((row["total_faulty"] / total_all) * 100, 2) if total_all else 0
+        results.append({
+            "supplier": row["origin__entity__name"],
+            "conferences": row["conferences"],
+            "faulty_rate": faulty_rate,
+            "faulty_items": row["total_faulty"],
+        })
+
+    return JsonResponse({"results": results[:20]})
+
+
+@login_required
+def products_with_divergence(request):
+    qs = (
+        ConferenceItem.objects
+        .filter(status="faulty")
+        .values("package__id")
+        .annotate(total_faulty=Count("id"))
+        .order_by("-total_faulty")[:20]
+    )
+
+    return JsonResponse({
+        "results": [
+            {
+                "package": _("Package #%(id)s") % {"id": row["package__id"]},
+                "total_faulty": row["total_faulty"],
+            }
+            for row in qs
+        ]
+    })
+
+
+@login_required
+def idle_time_conferences(request):
+    qs = (
+        Conference.objects
+        .filter(status="in_progress", start_date__isnull=False)
+        .annotate(
+            total_items=Count("items", distinct=True),
+            unread_items=Count("items", filter=Q(items__read_at__isnull=True), distinct=True),
+            last_read_at=Max("items__read_at"),
+        )
+        .select_related("origin", "destination", "started_by")
+        .order_by("start_date")
+    )
+
+    now = timezone.now()
+    results = []
+
+    for c in qs:
+        if c.last_read_at:
+            idle_seconds = int((now - c.last_read_at).total_seconds())
+        else:
+            idle_seconds = int((now - c.start_date).total_seconds())
+
+        results.append({
+            "id": c.id,
+            "origin": _party_label(c.origin),
+            "destination": _party_label(c.destination),
+            "started_by": _user_label(c.started_by),
+            "status": c.get_status_display(),
+            "event_type": c.get_event_type_display(),
+            "unread_items": c.unread_items,
+            "total_items": c.total_items,
+            "last_read_at": c.last_read_at.strftime("%d/%m/%Y %H:%M") if c.last_read_at else "-",
+            "idle_seconds": idle_seconds,
+        })
+
+    results.sort(key=lambda x: x["idle_seconds"], reverse=True)
+    return JsonResponse({"results": results[:30]})
+
+
+@login_required
+def full_flow_load_unload(request):
+    parents = (
+        Conference.objects
+        .filter(parent_conference__isnull=True)
+        .prefetch_related("derived_conferences")
+        .annotate(total_items=Count("items", distinct=True))
+        .order_by("-created_at")[:50]
+    )
+
+    results = []
+    for parent in parents:
+        children = parent.derived_conferences.all()
+        unloads = [c for c in children if c.event_type == "unload"]
+        loads = [c for c in children if c.event_type == "load"]
+
+        results.append({
+            "parent_id": parent.id,
+            "origin": _party_label(parent.origin),
+            "destination": _party_label(parent.destination),
+            "parent_event_type": parent.get_event_type_display(),
+            "parent_status": parent.get_status_display(),
+            "loads": len(loads),
+            "unloads": len(unloads),
+            "derived_total": len(children),
+            "created_at": parent.created_at.strftime("%d/%m/%Y %H:%M"),
+        })
+
+    return JsonResponse({"results": results})
+
+
+@login_required
+def cancelled_conferences(request):
+    qs = (
+        Conference.objects
+        .filter(status="cancelled")
+        .select_related("origin", "destination", "created_by")
+        .order_by("-created_at")[:100]
+    )
+
+    results = []
+    for c in qs:
+        results.append({
+            "id": c.id,
+            "origin": _party_label(c.origin),
+            "destination": _party_label(c.destination),
+            "status": c.get_status_display(),
+            "created_by": _user_label(c.created_by),
+            "created_at": c.created_at.strftime("%d/%m/%Y %H:%M"),
+            "updated_at": c.updated_at.strftime("%d/%m/%Y %H:%M"),
+        })
+
+    return JsonResponse({"results": results})
+
+
+@login_required
+def conference_sla(request):
+    qs = (
+        Conference.objects
+        .filter(status="finished", start_date__isnull=False, end_date__isnull=False)
+        .annotate(
+            duration=ExpressionWrapper(F("end_date") - F("start_date"), output_field=DurationField())
+        )
+    )
+
+    results = []
+    for c in qs.select_related("origin", "destination")[:200]:
+        real_seconds = int((c.end_date - c.start_date).total_seconds())
+        expected_seconds = 1800 if c.event_type == "load" else 2700
+        within_sla = real_seconds <= expected_seconds
+
+        results.append({
+            "id": c.id,
+            "origin": _party_label(c.origin),
+            "destination": _party_label(c.destination),
+            "event_type": c.get_event_type_display(),
+            "real_seconds": real_seconds,
+            "expected_seconds": expected_seconds,
+            "within_sla": within_sla,
+            "within_sla_label": _("Within SLA") if within_sla else _("Out of SLA"),
+        })
+
+    return JsonResponse({"results": results})
+
+
+@login_required
+def full_audit(request):
+    qs = (
+        ConferenceItem.objects
+        .filter(read_at__isnull=False)
+        .select_related("conference", "package", "read_by", "conference__origin", "conference__destination")
+        .order_by("-read_at")[:100]
+    )
+
+    results = []
+    for item in qs:
+        results.append({
+            "conference_id": item.conference_id,
+            "package_id": item.package_id,
+            "package_label": _("Package #%(id)s") % {"id": item.package_id},
+            "read_by": _user_label(item.read_by),
+            "read_at": item.read_at.strftime("%d/%m/%Y %H:%M:%S") if item.read_at else "-",
+            "status": item.get_status_display(),
+            "origin": _party_label(item.conference.origin),
+            "destination": _party_label(item.conference.destination),
+        })
+
+    return JsonResponse({"results": results})
+
+
+@login_required
+def errors_heatmap(request):
+    qs = (
+        ConferenceItem.objects
+        .filter(status="faulty", read_at__isnull=False)
+        .values(
+            "read_at__hour",
+            "read_by__username",
+            "conference__origin__entity__name",
+        )
+        .annotate(total=Count("id"))
+        .order_by("-total")[:100]
+    )
+
+    return JsonResponse({
+        "results": [
+            {
+                "hour": row["read_at__hour"],
+                "hour_label": _("%(hour)s h") % {"hour": row["read_at__hour"]},
+                "operator": row["read_by__username"] or _("No user"),
+                "origin": row["conference__origin__entity__name"],
+                "total": row["total"],
+            }
+            for row in qs
+        ]
+    })
