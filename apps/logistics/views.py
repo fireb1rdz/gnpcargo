@@ -21,7 +21,7 @@ from apps.logistics.exceptions import (PackageAlreadyReadError,
                                        PackageNotFoundError)
 # from domain.schemas.conference_table import ConferenceTableSchema
 from domain.bootstrap.service_container import (
-    get_conference_application_service, get_package_service)
+    get_conference_application_service)
 
 from .forms import ConferenceCreateForm
 from .models import Conference, ConferenceItem
@@ -93,10 +93,13 @@ class ConferenceActionView(View):
     template_name = "logistics/conference_action.html"
 
     def get(self, request, conference_id):
+        conference_application_service = get_conference_application_service()
         conference = Conference.objects.get(id=conference_id)
-        conference.start_date = timezone.now()
-        conference.started_by = request.user
-        conference.save()
+        conference_application_service.start_conference(
+            tenant=request.tenant,
+            conference_id=conference_id,
+            user=request.user,
+        )
         
         return render(request, self.template_name, {"conference": conference})
 
