@@ -13,7 +13,7 @@
 {% block content %}
     <div class="container-fluid">
         <div class="position-relative">
-            <h1 class="mb-4">Criar Conferência</h1>
+            <h1 class="mb-4">Criar</h1>
             <a href="{% url 'logistics:conference_list' %}"
                class="btn btn-secondary position-absolute top-0 end-0">Voltar</a>
         </div>
@@ -66,7 +66,7 @@
                                maxlength="44"
                                id="access-key-input"
                                class="border-0 flex-grow-1"
-                               placeholder="Leia a chave e pressione Enter" />
+                               placeholder="Leia a chave" />
                     </div>
                     <!-- Campo REAL enviado ao Django -->
                     <input type="hidden" name="access_keys" id="access-keys-hidden">

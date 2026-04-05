@@ -19,3 +19,118 @@ body {
     min-width: 50px;
     display: inline-block;
 }
+
+.conference-timer-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e9ecef;
+    border-radius: 18px;
+    padding: 18px 20px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+.conference-timer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.conference-timer-label {
+    display: block;
+    font-size: 0.9rem;
+    color: #6c757d;
+    font-weight: 600;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.conference-timer-value {
+    font-size: 2.1rem;
+    font-weight: 700;
+    color: #212529;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+.conference-timer-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.btn-timer {
+    border: none;
+    border-radius: 12px;
+    padding: 10px 18px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+.btn-timer:hover {
+    transform: translateY(-1px);
+    opacity: 0.96;
+}
+
+.btn-timer:active {
+    transform: translateY(0);
+}
+
+.btn-timer-pause {
+    background: #ffc107;
+    color: #212529;
+}
+
+.btn-timer-resume {
+    background: #198754;
+    color: #fff;
+}
+
+.conference-timer-status {
+    margin-top: 12px;
+}
+
+.timer-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.timer-running {
+    background: rgba(25, 135, 84, 0.12);
+    color: #198754;
+}
+
+.timer-paused {
+    background: rgba(255, 193, 7, 0.18);
+    color: #9a6700;
+}
+
+@media (max-width: 576px) {
+    .conference-timer-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .conference-timer-actions {
+        width: 100%;
+    }
+
+    .btn-timer {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .conference-timer-value {
+        font-size: 1.8rem;
+    }
+}

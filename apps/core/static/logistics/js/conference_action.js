@@ -1,144 +1,216 @@
 document.addEventListener("DOMContentLoaded", function () {
-
     const input = document.getElementById("barcodeInput");
     const tableBody = document.querySelector("#packagesTable tbody");
     const totalRead = document.getElementById("totalRead");
     const blueCounter = document.getElementById("blueCounter");
     const resetCounter = document.getElementById("resetCounter");
     const readingHistory = document.getElementById("readingHistory");
-    const conferenceId = CONFERENCE_ID;
-    const conferenceItems = [];
+    const session_id = document.getElementById("session_id").textContent;
+    const conference_id = document.getElementById("conference_id").textContent;
     const conferenceMode = CONFERENCE_MODE;
-    const OkSound = document.getElementById("OkSound");
-    const ErrorSound = document.getElementById("ErrorSound");
+    const okSound = document.getElementById("OkSound");
+    const errorSound = document.getElementById("ErrorSound");
+
+    const pauseButton = document.getElementById("btn-pausar");
+    const resumeButton = document.getElementById("btn-retomar");
+    const counterDisplay = document.getElementById("contador");
+    const timerStatusBadge = document.getElementById("timer-status-badge");
+
     let scanQueue = [];
     let isProcessing = false;
 
+    let count = 0;
+    let blueCount = 0;
+
+    let isPaused = false;
+    let elapsedSeconds = 0;
+    let timerInterval = null;
+
     function playOk() {
-        const audio = new Audio(OkSound.src);
+        const audio = new Audio(okSound.src);
         audio.play();
     }
 
     function playError() {
-        const audio = new Audio(ErrorSound.src);
+        const audio = new Audio(errorSound.src);
         audio.play();
     }
 
-    function enqueueScan(package_code) {
-        scanQueue.push(package_code);
+    function formatTime(totalSeconds) {
+        const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+        const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+        const seconds = String(totalSeconds % 60).padStart(2, "0");
+        return `${hours}:${minutes}:${seconds}`;
+    }
+
+    function updateCounterDisplay() {
+        if (counterDisplay) {
+            counterDisplay.textContent = formatTime(elapsedSeconds);
+        }
+    }
+
+    function startTimer() {
+        if (timerInterval) clearInterval(timerInterval);
+
+        timerInterval = setInterval(() => {
+            if (!isPaused) {
+                elapsedSeconds++;
+                updateCounterDisplay();
+            }
+        }, 1000);
+    }
+
+    function applyPausedState() {
+        if (pauseButton) pauseButton.style.display = "none";
+        if (resumeButton) resumeButton.style.display = "inline-flex";
+
+        if (timerStatusBadge) {
+            timerStatusBadge.textContent = "Pausado";
+            timerStatusBadge.classList.remove("timer-running");
+            timerStatusBadge.classList.add("timer-paused");
+        }
+    }
+
+    function applyRunningState() {
+        if (pauseButton) pauseButton.style.display = "inline-flex";
+        if (resumeButton) resumeButton.style.display = "none";
+
+        if (timerStatusBadge) {
+            timerStatusBadge.textContent = "Em andamento";
+            timerStatusBadge.classList.remove("timer-paused");
+            timerStatusBadge.classList.add("timer-running");
+        }
+    }
+
+    async function sendSessionEvent(eventType) {
+        try {
+            const response = await fetch(`/api/conference/session/${session_id}/event/`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": CSRF_TOKEN
+                },
+                body: JSON.stringify({ event_type: eventType })
+            });
+
+            if (!response.ok) {
+                console.error("Server error while sending session event:", eventType);
+                return null;
+            }
+
+            const data = await response.json();
+
+            if (data.total_seconds !== undefined) {
+                elapsedSeconds = data.total_seconds;
+                updateCounterDisplay();
+            }
+
+            return data;
+        } catch (error) {
+            console.error(`Error sending session event (${eventType}):`, error);
+            return null;
+        }
+    }
+
+    function enqueueScan(packageCode) {
+        scanQueue.push(packageCode);
         processQueue();
     }
 
     async function processQueue() {
         if (isProcessing) return;
-
         if (scanQueue.length === 0) return;
+        if (isPaused) return;
 
         isProcessing = true;
-
-        const package_code = scanQueue.shift();
+        const packageCode = scanQueue.shift();
 
         try {
-            if (CONFERENCE_MODE === "write") {
-                await addPackage(package_code);
-            } else if (CONFERENCE_MODE === "read") {
-                await readPackage(package_code);
+            if (conferenceMode === "write") {
+                await addPackage(packageCode);
+            } else if (conferenceMode === "read") {
+                await readPackage(packageCode);
             }
         } catch (error) {
-            console.error("Erro no processamento da fila:", error);
+            console.error("Queue processing error:", error);
         }
 
         isProcessing = false;
-
-        // processa próximo item automaticamente
         processQueue();
     }
 
-
-
     async function getConferenceItems() {
         try {
-            const response = await fetch(`/logistica/conferencia/items/${conferenceId}/`);
+            const response = await fetch(`/api/conference/items/${session_id}/`);
             const data = await response.json();
+
             data.forEach(item => {
                 addRow(item.package_code, item.status);
 
-                // só incrementa contador se já estiver conferido
                 if (conferenceMode === "read" && item.status === "ok") {
                     count++;
                 } else if (conferenceMode === "write" && item.status === "pending") {
                     count++;
                 }
-
             });
-            updateCounters();
 
+            updateCounters();
         } catch (error) {
-            console.error("Erro ao carregar itens da conferência:", error);
+            console.error("Error loading conference items:", error);
         }
     }
-
-
-    setTimeout(() => {
-        input.focus();
-    }, 300);
-
-    let count = 0;
-    let blueCount = 0;
-
-    input.focus();
 
     function updateCounters() {
         totalRead.textContent = count;
         blueCounter.textContent = blueCount;
     }
 
-    function addToHistory(package_code, status) {
+    function addToHistory(packageCode, status) {
         const entry = document.createElement("div");
-
         let message = "";
 
         if (status === "ok") {
-            message = `${package_code}: Lido com sucesso`;
+            message = `${packageCode}: Lido com sucesso`;
             entry.style.color = "green";
         } else if (status === "not_found") {
-            message = `${package_code}: Não localizado`;
+            message = `${packageCode}: Não localizado`;
             entry.style.color = "red";
         } else if (status === "already_read") {
-            message = `${package_code}: Já lido`;
+            message = `${packageCode}: Já lido`;
             entry.style.color = "orange";
         } else if (status === "pending") {
-            message = `${package_code}: Cadastrado com sucesso`;
+            message = `${packageCode}: Cadastrado com sucesso`;
             entry.style.color = "blue";
         } else {
-            message = `${package_code}: ${status}`;
+            message = `${packageCode}: ${status}`;
         }
 
         entry.textContent = message;
-
         readingHistory.prepend(entry);
     }
 
-
-    function addRow(package_code, status) {
+    function addRow(packageCode, status) {
         const row = document.createElement("tr");
 
-        if (status === "ok" && conferenceMode === "read" || status === "pending" && conferenceMode === "write") {
-            row.classList.add("table-success");   // linha verde
-        } else if (status === "error") {
+        if (
+            (status === "ok" && conferenceMode === "read") ||
+            (status === "pending" && conferenceMode === "write")
+        ) {
+            row.classList.add("table-success");
         }
 
         row.innerHTML = `
-            <td>${package_code}</td>
+            <td>${packageCode}</td>
             <td class="text-end">
                 <button class="btn btn-danger btn-sm remove-btn">
                     X
                 </button>
             </td>
         `;
-        row.setAttribute("data-package-code", package_code);
+
+        row.setAttribute("data-package-code", packageCode);
         row.querySelector(".remove-btn").addEventListener("click", function () {
-            removePackage(package_code, row);
+            removePackage(packageCode, row);
         });
 
         tableBody.prepend(row);
@@ -155,28 +227,32 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    async function addPackage(package_code) {
+    async function addPackage(packageCode) {
         const response = await sendPost(ADD_ENDPOINT, {
-            package_code: package_code
+            package_code: packageCode
         });
+
         const data = await response.json();
-        addToHistory(package_code, data.status);
+        addToHistory(packageCode, data.status);
+
         if (response.ok) {
             playOk();
-            addRow(package_code, data.status);
+            addRow(packageCode, data.status);
             count++;
             blueCount++;
             updateCounters();
         } else {
             playError();
-            alert("Erro ao adicionar volume")
+            alert("Erro ao adicionar volume");
         }
     }
 
-    async function updateRow(package_code, status) {
-        const row = document.querySelector(`tr[data-package-code="${package_code}"]`);
+    async function updateRow(packageCode, status) {
+        const row = document.querySelector(`tr[data-package-code="${packageCode}"]`);
+
         if (row) {
             row.classList.remove("table-success", "table-danger");
+
             if (status === "ok") {
                 playOk();
                 row.classList.add("table-success");
@@ -187,15 +263,17 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    async function readPackage(package_code) {
+    async function readPackage(packageCode) {
         const response = await sendPost(READ_ENDPOINT, {
-            package_code: package_code
+            package_code: packageCode
         });
+
         const data = await response.json();
-        addToHistory(package_code, data.status);
+        addToHistory(packageCode, data.status);
+
         if (data.status === "ok") {
             playOk();
-            updateRow(package_code, data.status);
+            updateRow(packageCode, data.status);
             count++;
             blueCount++;
             updateCounters();
@@ -204,10 +282,9 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-
-    async function removePackage(package_code, rowElement) {
+    async function removePackage(packageCode, rowElement) {
         const response = await sendPost(REMOVE_ENDPOINT, {
-            package_code: package_code
+            package_code: packageCode
         });
 
         if (response.ok) {
@@ -221,17 +298,21 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    input.addEventListener("keydown", function (e) {
+    input.addEventListener("keydown", async function (e) {
         if (e.key === "Enter") {
             e.preventDefault();
-            const value = input.value.trim();
-            console.log(value)
 
-            if (value) {
-                enqueueScan(value);
-                input.value = "";
+            const value = input.value.trim();
+            if (!value) return;
+
+            if (isPaused) {
+                isPaused = false;
+                applyRunningState();
+                await sendSessionEvent("resume");
             }
 
+            enqueueScan(value);
+            input.value = "";
         }
     });
 
@@ -240,5 +321,74 @@ document.addEventListener("DOMContentLoaded", function () {
         updateCounters();
     });
 
+    if (pauseButton) {
+        pauseButton.addEventListener("click", async function () {
+            isPaused = true;
+            applyPausedState();
+            input.blur();
+            await sendSessionEvent("pause");
+        });
+    }
+
+    if (resumeButton) {
+        resumeButton.addEventListener("click", async function () {
+            isPaused = false;
+            applyRunningState();
+            input.focus();
+            await sendSessionEvent("resume");
+            processQueue();
+        });
+    }
+
+    document.addEventListener("visibilitychange", async function () {
+        if (document.hidden) {
+            if (!isPaused) {
+                isPaused = true;
+                applyPausedState();
+                await sendSessionEvent("pause");
+            }
+        }
+    });
+
+    window.addEventListener("beforeunload", function () {
+        try {
+            navigator.sendBeacon(
+                `/api/conference/session/${session_id}/event/`,
+                new Blob(
+                    [JSON.stringify({ event_type: "finish" })],
+                    { type: "application/json" }
+                )
+            );
+        } catch (error) {
+            console.error("Error sending finish beacon:", error);
+        }
+    });
+
+    setInterval(() => {
+        if (!isPaused && !document.hidden) {
+            try {
+                navigator.sendBeacon(
+                    `/api/conference/session/${session_id}/event/`,
+                    new Blob(
+                        [JSON.stringify({ event_type: "heartbeat" })],
+                        { type: "application/json" }
+                    )
+                );
+            } catch (error) {
+                console.error("Heartbeat error:", error);
+            }
+        }
+    }, 30000);
+
+    setTimeout(() => {
+        input.focus();
+    }, 300);
+
+    input.focus();
+    updateCounterDisplay();
+    startTimer();
+    applyRunningState();
+    updateCounters();
     getConferenceItems();
+    sendSessionEvent("resume");
 });

@@ -8,6 +8,8 @@
           href="{% static 'logistics/css/conference_action.css' %}">
 {% endblock head %}
 {% block content %}
+    <span class="d-none" id="session_id">{{ session.id }}</span>
+    <span class="d-none" id="conference_id">{{ conference.id }}</span>
     <audio id="OkSound" src="{% static 'logistics/mp3/ok.mp3' %}"></audio>
     <audio id="ErrorSound" src="{% static 'logistics/mp3/error.mp3' %}"></audio>
     <!-- Modal -->
@@ -17,7 +19,7 @@
          aria-labelledby="finalizarModalLabel"
          aria-hidden="true">
         <div class="modal-dialog">
-            <form action="{% url 'logistics:finish_conference' conference.id %}"
+            <form action="{% url 'logistics:finish_conference' session.id %}"
                   method="post">
                 {% csrf_token %}
                 <div class="modal-content">
@@ -40,6 +42,30 @@
         </div>
     </div>
     <div class="container mt-4">
+        <div class="conference-timer-card mb-3">
+            <div class="conference-timer-header">
+                <div>
+                    <span class="conference-timer-label">Tempo de conferência</span>
+                    <div id="contador" class="conference-timer-value">00:00:00</div>
+                </div>
+                <div class="conference-timer-actions">
+                    <button id="btn-pausar" type="button" class="btn-timer btn-timer-pause">
+                        <i class="bi bi-pause-fill"></i>
+                        <span>Pausar</span>
+                    </button>
+                    <button id="btn-retomar"
+                            type="button"
+                            class="btn-timer btn-timer-resume"
+                            style="display: none">
+                        <i class="bi bi-play-fill"></i>
+                        <span>Retomar</span>
+                    </button>
+                </div>
+            </div>
+            <div class="conference-timer-status">
+                <span id="timer-status-badge" class="timer-badge timer-running">Em andamento</span>
+            </div>
+        </div>
         <div class="card shadow">
             <div class="card-body">
                 <h3 class="mb-3 text-center">
