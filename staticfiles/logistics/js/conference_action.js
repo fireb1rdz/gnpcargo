@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const resetCounter = document.getElementById("resetCounter");
     const readingHistory = document.getElementById("readingHistory");
     const session_id = document.getElementById("session_id").textContent;
+    const conference_id = document.getElementById("conference_id").textContent;
     const conferenceMode = CONFERENCE_MODE;
     const okSound = document.getElementById("OkSound");
     const errorSound = document.getElementById("ErrorSound");
