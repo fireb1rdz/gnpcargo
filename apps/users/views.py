@@ -1,4 +1,4 @@
-from django.views.generic import CreateView, ListView, UpdateView, DeleteView, TemplateView
+from django.views.generic import CreateView, ListView, UpdateView, DeleteView, RedirectView
 from django.contrib import messages
 from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -58,5 +58,9 @@ class UserDeleteView(DeleteView):
     model = User
     success_url = "/usuarios/listar/"
 
-class HomeView(LoginRequiredMixin, TemplateView):
-    template_name = "auth/home.html"
+class HomeView(LoginRequiredMixin, RedirectView):
+    redirect_authenticated_user = True
+    url = reverse_lazy("dashboards:dashboards")
+
+    def get_success_url(self):
+        return self.url

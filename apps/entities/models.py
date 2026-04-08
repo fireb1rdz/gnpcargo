@@ -17,6 +17,7 @@ class Entity(TenantAwareModel):
     is_active = models.BooleanField(default=True)
     is_branch = models.BooleanField(default=False)
     is_system = models.BooleanField(default=False, help_text='Allow access to the entity as system company')
+    conference_sla = models.IntegerField(default=1800, help_text='Conference SLA in seconds')
 
     def __str__(self):
         return self.name

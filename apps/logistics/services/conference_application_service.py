@@ -2,7 +2,7 @@
 import xml.etree.ElementTree as ET
 from django.utils.timezone import now
 
-from apps.logistics.models import Conference, ConferenceItem
+from apps.logistics.models import Conference, ConferenceItem, ConferenceSession
 from domain.contracts.stock import PackageServiceInterface
 from domain.contracts.entity import PartyServiceInterface
 from domain.dto.fiscal import CTEDTO
@@ -128,6 +128,10 @@ class ConferenceApplicationService:
         conference = Conference.objects.get(tenant=tenant, id=conference_id)
         return conference.items.all()
 
+    def get_conference_items_by_session(self, tenant, session_id):
+        session = ConferenceSession.objects.get(tenant=tenant, id=session_id)
+        return session.conference.items.all()
+
     def finish_conference(self, tenant, conference_id, user):
         conference = Conference.objects.get(tenant=tenant, id=conference_id)
         already_created = Conference.objects.filter(
@@ -149,12 +153,37 @@ class ConferenceApplicationService:
         conference.end_date = now()
         conference.save()
 
+    def finish_conference_by_session(self, tenant, session_id, user):
+        session = ConferenceSession.objects.get(tenant=tenant, id=session_id)
+        self.finish_conference(tenant, session.conference.id, user)
+        session.finished = True
+        session.save()
+
     def start_conference(self, tenant, conference_id, user):
         conference = Conference.objects.get(tenant=tenant, id=conference_id)
+        if conference.status != "pending":
+            session = conference.sessions.filter(user=user).first()
+            if session:
+                return session
+            else:
+                session = conference.sessions.create(
+                    tenant=tenant,
+                    conference=conference,
+                    user=user,
+                    last_start=now(),
+                )
+                return session
         conference.status = "in_progress"
         conference.started_by = user
         conference.start_date = now()
         conference.save()
+        session = ConferenceSession.objects.create(
+            tenant=tenant,
+            conference=conference,
+            user=user,
+            last_start=now(),
+        )
+        return session
 
     def create_conference_in_destination(self, tenant, conference_id, user):
         conference = Conference.objects.get(tenant=tenant, id=conference_id)

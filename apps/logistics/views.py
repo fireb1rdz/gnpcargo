@@ -15,6 +15,7 @@ from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _
 from django.views import View
 from django.views.generic import ListView
+from django.views.decorators.http import require_POST
 
 from apps.entities.models import Party
 from apps.logistics.exceptions import (PackageAlreadyReadError,
@@ -24,7 +25,7 @@ from domain.bootstrap.service_container import (
     get_conference_application_service)
 
 from .forms import ConferenceCreateForm
-from .models import Conference, ConferenceItem
+from .models import Conference, ConferenceItem, ConferenceSession
 
 
 class ConferenceCreateView(View):
@@ -95,17 +96,18 @@ class ConferenceActionView(View):
     def get(self, request, conference_id):
         conference_application_service = get_conference_application_service()
         conference = Conference.objects.get(id=conference_id)
-        conference_application_service.start_conference(
-            tenant=request.tenant,
-            conference_id=conference_id,
-            user=request.user,
-        )
+        session = conference.sessions.filter(user=request.user).first()
+        if not session:
+            session = conference_application_service.start_conference(
+                tenant=request.tenant,
+                conference_id=conference_id,
+                user=request.user,
+            )
         
-        return render(request, self.template_name, {"conference": conference})
+        return render(request, self.template_name, {"conference": conference, "session": session})
 
 class ConferenceAddPackageView(View):
     def post(self, request, conference_id):
-
         try:
             data = json.loads(request.body)
             package_code = data.get("package_code")
@@ -122,10 +124,10 @@ class ConferenceAddPackageView(View):
             user=request.user,
             conference_id=conference_id,
             package_code=package_code,
-            status="pending",
+            status="finished",
         )
 
-        return JsonResponse({"status": "pending"})
+        return JsonResponse({"status": "finished"})
 
 class ConferenceRemovePackageView(View):
     def post(self, request, conference_id):
@@ -140,11 +142,11 @@ class ConferenceRemovePackageView(View):
         return JsonResponse({"status": "ok"})
 
 class GetConferenceItemsView(View):
-    def get(self, request, conference_id):
+    def get(self, request, session_id):
         conference_application_service = get_conference_application_service()
-        conference_items = conference_application_service.get_conference_items(
+        conference_items = conference_application_service.get_conference_items_by_session(
             tenant=request.tenant,
-            conference_id=conference_id,
+            session_id=session_id,
         )
         result = [
             {
@@ -158,11 +160,11 @@ class GetConferenceItemsView(View):
         return JsonResponse(result, safe=False)
 
 class FinishConferenceView(View):
-    def post(self, request, conference_id):
+    def post(self, request, session_id):
         conference_application_service = get_conference_application_service()
-        conference_application_service.finish_conference(
+        conference_application_service.finish_conference_by_session(
             tenant=request.tenant,
-            conference_id=conference_id,
+            session_id=session_id,
             user=request.user,
         )
         messages.success(request, "Conferência finalizada com sucesso.")
@@ -233,11 +235,57 @@ class AmountPackagesByDayView(View):
             "days": days
         })
 
+@require_POST
+def conference_session_event(request, session_id):
+    session = ConferenceSession.objects.get(id=session_id)
+    data = json.loads(request.body)
+    event_type = data.get("event_type")
+    now = timezone.now()
+
+    if event_type == "pause":
+        if not session.paused and session.last_start:
+            session.total_seconds += int((now - session.last_start).total_seconds())
+            session.last_start = None
+            session.paused = True
+
+    elif event_type == "resume":
+        if session.paused:
+            session.last_start = now
+            session.paused = False
+
+    elif event_type == "finish":
+        if not session.paused and session.last_start:
+            session.total_seconds += int((now - session.last_start).total_seconds())
+        session.last_start = None
+        session.finished = True
+        session.paused = True
+
+    elif event_type == "heartbeat":
+        pass
+
+    session.save()
+
+    return JsonResponse({
+        "ok": True,
+        "total_seconds": session.total_time_actual()
+    })
 
 @login_required
 def dashboards(request):
     return render(request, "dashboards/index.html")
+    
+def _conference_total_seconds_from_sessions(conference):
+    total = 0
+    for session in conference.sessions.all():
+        total += session.total_time_actual()
+    return total
 
+
+def _conference_total_seconds_finished(conference):
+    total = 0
+    for session in conference.sessions.all():
+        total += session.total_seconds or 0
+    return total
 
 def _days_param(request, default=30):
     try:
@@ -296,16 +344,14 @@ def conferences_in_progress(request):
             read_items=Count("items", filter=Q(items__read_at__isnull=False), distinct=True),
         )
         .select_related("origin", "destination", "started_by")
+        .prefetch_related("sessions")
         .order_by("start_date")
     )
 
-    now = timezone.now()
     data = []
 
     for conference in qs:
-        elapsed = None
-        if conference.start_date:
-            elapsed = now - conference.start_date
+        elapsed_seconds = _conference_total_seconds_from_sessions(conference)
 
         data.append({
             "id": conference.id,
@@ -313,7 +359,7 @@ def conferences_in_progress(request):
             "destination": _party_label(conference.destination),
             "started_by": _user_label(conference.started_by),
             "start_date": conference.start_date.strftime("%d/%m/%Y %H:%M") if conference.start_date else "-",
-            "elapsed_seconds": int(elapsed.total_seconds()) if elapsed else 0,
+            "elapsed_seconds": elapsed_seconds,
             "read_items": conference.read_items,
             "total_items": conference.total_items,
             "event_type": conference.get_event_type_display(),
@@ -328,56 +374,59 @@ def conferences_in_progress(request):
 @login_required
 def average_conference_time(request):
     qs = (
-        Conference.objects
+        ConferenceSession.objects
         .filter(
-            start_date__isnull=False,
-            end_date__isnull=False,
-            status="finished",
+            finished=True,
+            conference__status="finished",
         )
-        .annotate(
-            duration=ExpressionWrapper(
-                F("end_date") - F("start_date"),
-                output_field=DurationField(),
-            )
-        )
+        .select_related("conference", "conference__origin", "conference__destination", "user")
     )
 
     by_user = []
     user_qs = (
-        qs.values("started_by__id", "started_by__username")
-        .annotate(avg_duration=Avg("duration"), total=Count("id"))
-        .order_by("avg_duration")
+        qs.values("user__id", "user__username")
+        .annotate(
+            avg_seconds=Avg("total_seconds"),
+            total=Count("id"),
+        )
+        .order_by("avg_seconds")
     )
     for row in user_qs:
         by_user.append({
-            "label": row["started_by__username"] or _("No user"),
-            "avg_seconds": _seconds_from_duration(row["avg_duration"]),
+            "label": row["user__username"] or _("No user"),
+            "avg_seconds": round(row["avg_seconds"] or 0, 2),
             "total": row["total"],
         })
 
     by_event_type = []
     type_qs = (
-        qs.values("event_type")
-        .annotate(avg_duration=Avg("duration"), total=Count("id"))
-        .order_by("avg_duration")
+        qs.values("conference__event_type")
+        .annotate(
+            avg_seconds=Avg("total_seconds"),
+            total=Count("id"),
+        )
+        .order_by("avg_seconds")
     )
     for row in type_qs:
         by_event_type.append({
-            "label": _event_type_label(row["event_type"]),
-            "avg_seconds": _seconds_from_duration(row["avg_duration"]),
+            "label": _event_type_label(row["conference__event_type"]),
+            "avg_seconds": round(row["avg_seconds"] or 0, 2),
             "total": row["total"],
         })
 
     by_route = []
     route_qs = (
-        qs.values("origin__entity__name", "destination__entity__name")
-        .annotate(avg_duration=Avg("duration"), total=Count("id"))
-        .order_by("avg_duration")[:20]
+        qs.values("conference__origin__entity__name", "conference__destination__entity__name")
+        .annotate(
+            avg_seconds=Avg("total_seconds"),
+            total=Count("id"),
+        )
+        .order_by("avg_seconds")[:20]
     )
     for row in route_qs:
         by_route.append({
-            "label": f'{row["origin__entity__name"]} → {row["destination__entity__name"]}',
-            "avg_seconds": _seconds_from_duration(row["avg_duration"]),
+            "label": f'{row["conference__origin__entity__name"]} → {row["conference__destination__entity__name"]}',
+            "avg_seconds": round(row["avg_seconds"] or 0, 2),
             "total": row["total"],
         })
 
@@ -581,29 +630,30 @@ def error_rate_rankings(request):
 @login_required
 def operator_performance(request):
     qs = (
-        Conference.objects
-        .filter(status="finished", start_date__isnull=False, end_date__isnull=False)
-        .annotate(
-            duration=ExpressionWrapper(F("end_date") - F("start_date"), output_field=DurationField())
+        ConferenceSession.objects
+        .filter(
+            finished=True,
+            conference__status="finished",
         )
-        .values("started_by__username")
+        .values("user__username")
         .annotate(
-            conferences=Count("id"),
-            avg_duration=Avg("duration"),
-            total_faulty=Count("items", filter=Q(items__status="faulty")),
-            total_items=Count("items"),
+            conferences=Count("conference", distinct=True),
+            avg_seconds=Avg("total_seconds"),
+            total_faulty=Count("conference__items", filter=Q(conference__items__status="faulty")),
+            total_items=Count("conference__items"),
         )
         .order_by("-conferences")
     )
+    print(qs)
 
     results = []
     for row in qs:
         total_items = row["total_items"] or 0
         error_rate = round((row["total_faulty"] / total_items) * 100, 2) if total_items else 0
         results.append({
-            "operator": row["started_by__username"] or _("No user"),
+            "operator": row["user__username"] or _("No user"),
             "conferences": row["conferences"],
-            "avg_seconds": _seconds_from_duration(row["avg_duration"]),
+            "avg_seconds": round(row["avg_seconds"] or 0, 2),
             "error_rate": error_rate,
         })
 
@@ -866,15 +916,15 @@ def cancelled_conferences(request):
 def conference_sla(request):
     qs = (
         Conference.objects
-        .filter(status="finished", start_date__isnull=False, end_date__isnull=False)
-        .annotate(
-            duration=ExpressionWrapper(F("end_date") - F("start_date"), output_field=DurationField())
-        )
+        .filter(status="finished")
+        .select_related("origin", "destination")
+        .prefetch_related("sessions")
+        .order_by("-created_at")[:200]
     )
 
     results = []
-    for c in qs.select_related("origin", "destination")[:200]:
-        real_seconds = int((c.end_date - c.start_date).total_seconds())
+    for c in qs:
+        real_seconds = _conference_total_seconds_finished(c)
         expected_seconds = 1800 if c.event_type == "load" else 2700
         within_sla = real_seconds <= expected_seconds
 
@@ -890,7 +940,6 @@ def conference_sla(request):
         })
 
     return JsonResponse({"results": results})
-
 
 @login_required
 def full_audit(request):

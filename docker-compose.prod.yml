@@ -22,11 +22,11 @@ services:
     labels:
       - "traefik.enable=true"
       # Substitua pelo seu domínio real ou pelo domínio de demo
-      - "traefik.http.routers.gnp-erp.rule=Host(`cargo.gnpsistemas.com.br`) && !PathPrefix(`/static/`)"
-      - "traefik.http.routers.gnp-erp.entrypoints=web"
+      - "traefik.http.routers.gnpcargo.rule=Host(`cargo.gnpsistemas.com.br`) && !PathPrefix(`/static/`)"
+      - "traefik.http.routers.gnpcargo.entrypoints=web"
       # Indica ao Traefik em qual porta o Gunicorn está ouvindo
-      - "traefik.http.services.gnp-erp.loadbalancer.server.port=8000"
-      - "traefik.http.routers.gnp-erp-static.priority=1"
+      - "traefik.http.services.gnpcargo.loadbalancer.server.port=8000"
+      - "traefik.http.routers.gnpcargo-static.priority=1"
     volumes:
       - static_volume:/app/staticfiles
 
