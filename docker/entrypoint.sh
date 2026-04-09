@@ -7,11 +7,11 @@ sleep 2
 # 1. shared
 python manage.py migrate_schemas --shared --noinput
 
-# 2. cria tenant (SEM user)
-python manage.py setup_tenants
-
-# 3. cria tabelas do tenant
+# 2. cria tabelas do tenant
 python manage.py migrate_schemas --tenant --noinput
+
+# 3. cria tenant (SEM user)
+python manage.py setup_tenants
 
 # 4. cria superuser (AGORA SIM EXISTE TABELA)
 python manage.py create_tenant_superuser \
