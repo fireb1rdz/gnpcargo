@@ -130,7 +130,7 @@ class Command(BaseCommand):
 
         # 3) Garante superuser no schema do tenant público
         with schema_context(tenant.schema_name):
-            user = User.objects.filter(username=username).first()
+            user = None
 
             if user is None:
                 User.objects.create_superuser(
