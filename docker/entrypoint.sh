@@ -26,7 +26,7 @@ from django_tenants.utils import get_tenant_model, tenant_context
 User = get_user_model()
 Tenant = get_tenant_model()
 
-tenant = Tenant.objects.get(schema_name="public")
+tenant = Tenant.objects.get(schema_name="gnp")
 
 with tenant_context(tenant):
     user = User.objects.filter(username="admin").first()
